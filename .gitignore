@@ -1,0 +1,139 @@
+# ==========================================
+# Environment Variables & Secrets
+# ==========================================
+.env
+*.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# ==========================================
+# Database & User Upload Storage
+# ==========================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+asklytix.db
+backend/asklytix.db
+
+# Storage folders (ignore contents but keep directory structure)
+backend/storage/uploads/*
+!backend/storage/uploads/.gitkeep
+backend/storage/cleaned/*
+!backend/storage/cleaned/.gitkeep
+backend/storage/sandbox/*
+!backend/storage/sandbox/.gitkeep
+storage/
+
+# ==========================================
+# Python & Virtual Environments
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==========================================
+# Node.js & Frontend Build Outputs
+# ==========================================
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.npm/
+
+# ==========================================
+# Testing & Code Quality Cache
+# ==========================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.oxlint_cache/
+
+# ==========================================
+# IDEs, Editors & OS Files
+# ==========================================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Windows
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux / Vim / Emacs
+*~
+*.swp
+*.swo
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ==========================================
+# Logs & Temporary Files
+# ==========================================
+logs/
+*.log
+tmp/
+temp/
+.cache/
