@@ -25,8 +25,8 @@ export const UserMenu: React.FC = () => {
     navigate('/login');
   };
 
-  const displayName = user?.name || 'Data Analyst';
-  const displayEmail = user?.email || 'analyst@asklytix.ai';
+  const displayName = user?.name || 'Karan Bhoi';
+  const displayEmail = user?.email || 'karanbhoi1441@gmail.com';
   const initials = displayName
     .split(' ')
     .map((n) => n[0])

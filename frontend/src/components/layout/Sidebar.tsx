@@ -12,7 +12,7 @@ export const Sidebar: React.FC = () => {
   const { isCollapsed, toggleSidebar } = useSidebar();
   const { user } = useAuth();
 
-  const displayName = user?.name || 'Data Analyst';
+  const displayName = user?.name || 'Karan Bhoi';
   const displayRole = 'Pro Tier';
 
   return (
@@ -73,9 +73,9 @@ export const Sidebar: React.FC = () => {
 
         {!isCollapsed && (
           <div className="flex items-center justify-center gap-2 pt-1 border-t border-slate-900 text-[10px] text-slate-500 font-mono">
-            <span className="text-slate-400 font-semibold">Sahil Bhirud</span>
+            <span className="text-slate-400 font-semibold">Karan Bhoi</span>
             <span>|</span>
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="hover:text-cyan-400 transition-colors">GitHub</a>
+            <a href="https://github.com/karanbhoi1441" target="_blank" rel="noreferrer" className="hover:text-cyan-400 transition-colors">GitHub</a>
             <span>|</span>
             <a href="https://linkedin.com" target="_blank" rel="noreferrer" className="hover:text-blue-400 transition-colors">LinkedIn</a>
           </div>
