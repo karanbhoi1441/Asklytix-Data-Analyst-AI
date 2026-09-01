@@ -398,14 +398,19 @@ class AnalysisEngine:
             try:
                 # Build rich multi-entity aggregation query in DuckDB
                 in_entities_sql = ", ".join([f"'{e.lower()}'" for e in filter_entities])
+                target_unique_clause = f'COUNT(DISTINCT "{target_dim_col}") AS "Unique_{target_dim_label}s",' if target_dim_col else ""
+                rev_sum_clause = f'ROUND(SUM("{rev_col}"), 2) AS "Total_Revenue",' if rev_col else ""
+                price_avg_clause = f'ROUND(AVG("{price_col or rev_col}"), 2) AS "Avg_Price",' if (price_col or rev_col) else ""
+                str_agg_clause = f'STRING_AGG(DISTINCT "{target_dim_col}", \', \') AS "{target_dim_label}s_List"' if target_dim_col else ""
+                
                 agg_sql = f'''
                     SELECT 
                         "{primary_filter_col}" AS "{filter_col_label}",
-                        {f'COUNT(DISTINCT "{target_dim_col}") AS "Unique_{target_dim_label}s",' if target_dim_col else ""}
+                        {target_unique_clause}
                         COUNT(*) AS "Total_Transactions",
-                        {f'ROUND(SUM("{rev_col}"), 2) AS "Total_Revenue",' if rev_col else ""}
-                        {f'ROUND(AVG("{price_col or rev_col}"), 2) AS "Avg_Price",' if (price_col or rev_col) else ""}
-                        {f'STRING_AGG(DISTINCT "{target_dim_col}", \', \') AS "{target_dim_label}s_List"' if target_dim_col else ""}
+                        {rev_sum_clause}
+                        {price_avg_clause}
+                        {str_agg_clause}
                     FROM dataset
                     WHERE LOWER("{primary_filter_col}") IN ({in_entities_sql})
                     GROUP BY "{primary_filter_col}"
@@ -415,11 +420,13 @@ class AnalysisEngine:
                 agg_rows = clean_rows(agg_df, 100)
 
                 # Overall totals across these filtered entities
+                tot_unique_clause = f'COUNT(DISTINCT "{target_dim_col}") AS "Total_Unique_{target_dim_label}s",' if target_dim_col else ""
+                tot_rev_clause = f'ROUND(SUM("{rev_col}"), 2) AS "Combined_Revenue"' if rev_col else "0 AS Combined_Revenue"
                 tot_sql = f'''
                     SELECT 
-                        {f'COUNT(DISTINCT "{target_dim_col}") AS "Total_Unique_{target_dim_label}s",' if target_dim_col else ""}
+                        {tot_unique_clause}
                         COUNT(*) AS "Combined_Transactions",
-                        {f'ROUND(SUM("{rev_col}"), 2) AS "Combined_Revenue"' if rev_col else "0 AS Combined_Revenue"}
+                        {tot_rev_clause}
                     FROM dataset
                     WHERE LOWER("{primary_filter_col}") IN ({in_entities_sql});
                 '''
@@ -525,13 +532,17 @@ class AnalysisEngine:
                             breakdown_lines.append(f"• **{other_col.replace('_', ' ').title()} Breakdown**: {summary_str}")
 
                 col_title = primary_filter_col.replace("_", " ").title()
+                rev_line = f"• **Total Revenue**: **{format_currency(sub_rev)}** (Average: {format_currency(sub_avg)} per transaction)\n" if sub_rev > 0 else ""
+                qty_line = f"• **Total Units Sold**: **{sub_qty:,} units**\n" if sub_qty > 0 else ""
+                breakdown_str = ("\n".join(breakdown_lines[:3]) + "\n") if breakdown_lines else ""
+                
                 response_text = (
                     f"### Analysis for **{matched_val}** ({col_title}) in **{dataset_name}**:\n\n"
                     f"• **Total Recorded Transactions**: **{match_cnt:,} rows** ({round(match_cnt / max(1, total_records) * 100, 1)}% of dataset)\n"
-                    f"{f'• **Total Revenue**: **{format_currency(sub_rev)}** (Average: {format_currency(sub_avg)} per transaction)\n' if sub_rev > 0 else ''}"
-                    f"{f'• **Total Units Sold**: **{sub_qty:,} units**\n' if sub_qty > 0 else ''}"
-                    + ("\n".join(breakdown_lines[:3]) + "\n" if breakdown_lines else "")
-                    + f"• **Data View**: Showing {len(filtered_rows)} records for **{matched_val}** in the table below."
+                    f"{rev_line}"
+                    f"{qty_line}"
+                    f"{breakdown_str}"
+                    f"• **Data View**: Showing {len(filtered_rows)} records for **{matched_val}** in the table below."
                 )
 
                 return {
@@ -575,12 +586,13 @@ class AnalysisEngine:
                 col_label = col_name.replace("_", " ").title()
 
                 try:
+                    rev_sum_dist = f', ROUND(SUM("{rev_col}"), 2) AS "Total_Revenue"' if rev_col else ""
                     dist_sql = f'''
                         SELECT 
                             "{col_name}" AS "{col_name}",
                             COUNT(*) AS "Record_Count",
                             ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM dataset), 1) AS "Share_Pct"
-                            {f', ROUND(SUM("{rev_col}"), 2) AS "Total_Revenue"' if rev_col else ""}
+                            {rev_sum_dist}
                         FROM dataset
                         WHERE "{col_name}" IS NOT NULL
                         GROUP BY "{col_name}"
@@ -709,13 +721,15 @@ class AnalysisEngine:
 
                     col_display = target_num_col.replace("_", " ").title()
                     filter_display = f" for {', '.join(filter_entities)}" if filter_entities else ""
+                    range_str = f"• **Range**: {format_currency(min_val)} (Min) to {format_currency(max_val)} (Max)\n" if is_curr else f"• **Range**: {min_val:,.2f} to {max_val:,.2f}\n"
+                    sum_str = f"• **Total Sum**: {format_currency(sum_val)}\n" if agg_func != 'SUM' and is_curr else ""
 
                     response_text = (
                         f"### Calculated **{agg_name} {col_display}**{filter_display} in **{dataset_name}**:\n\n"
                         f"• **{agg_name} {col_display}**: **{val_formatted}**\n"
                         f"• **Evaluated Records**: **{cnt_val:,} transactions** ({round(cnt_val / max(1, total_records) * 100, 1)}% of dataset)\n"
-                        f"{f'• **Range**: {format_currency(min_val)} (Min) to {format_currency(max_val)} (Max)' if is_curr else f'• **Range**: {min_val:,.2f} to {max_val:,.2f}'}\n"
-                        f"{f'• **Total Sum**: {format_currency(sum_val)}' if agg_func != 'SUM' and is_curr else ''}\n"
+                        f"{range_str}"
+                        f"{sum_str}"
                         f"• **Data View**: Showing {len(sample_rows)} relevant records in the table below."
                     )
 
@@ -842,7 +856,12 @@ class AnalysisEngine:
                         "codeDetails": {
                             "query": raw_query,
                             "datasetName": dataset_name,
-                            "pythonCode": f"import pandas as pd\ndf = pd.read_csv('{dataset_name}.csv')\nresult = df{f'.sort_values(by=\"{target_metric_col}\", ascending={is_asc})' if target_metric_col else ''}.head({n_count})\nprint(result)",
+                            "pythonCode": (
+                                f"import pandas as pd\n"
+                                f"df = pd.read_csv('{dataset_name}.csv')\n"
+                                + (f"result = df.sort_values(by='{target_metric_col}', ascending={is_asc}).head({n_count})\n" if target_metric_col else f"result = df.head({n_count})\n")
+                                + f"print(result)"
+                            ),
                             "sqlQuery": f'SELECT * FROM dataset ORDER BY TRY_CAST("{target_metric_col}" AS DOUBLE) {order_dir} LIMIT {n_count};' if target_metric_col else f'SELECT * FROM dataset LIMIT {n_count};',
                             "jsCode": f"const result = dataset.slice(0, {n_count});",
                             "executionSteps": [

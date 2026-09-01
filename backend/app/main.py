@@ -13,12 +13,16 @@ from app.api.v1.analysis import router as analysis_router
 from app.api.v1.dashboard import router as dashboard_router
 from app.api.v1.visualizations import router as visualizations_router
 
-# Create DB tables immediately
-Base.metadata.create_all(bind=engine)
+def init_db():
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("[Database] PostgreSQL tables synchronized successfully.")
+    except Exception as e:
+        print(f"[Database Warning] Could not initialize database tables: {e}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    init_db()
     try:
         from app.services.storage_manager import StorageManager
         from app.db.session import SessionLocal
