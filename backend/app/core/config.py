@@ -3,9 +3,16 @@ from pathlib import Path
 from typing import List
 from pydantic_settings import BaseSettings
 
-# Load .env file from the backend root directory
+# Load .env file from candidate locations
 from dotenv import load_dotenv
-load_dotenv(dotenv_path=Path(__file__).resolve().parent.parent.parent / ".env")
+for env_path in [
+    Path(__file__).resolve().parent.parent.parent / ".env",
+    Path(__file__).resolve().parent.parent.parent.parent / ".env",
+    Path.cwd() / ".env",
+    Path.cwd() / "backend" / ".env",
+]:
+    if env_path.is_file():
+        load_dotenv(dotenv_path=env_path)
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "AskLytix Analytics Engine"
@@ -28,10 +35,24 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:80",
+        "http://localhost",
     ]
     
-    # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./asklytix.db")
+    # Supabase Configuration
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+    SUPABASE_ANON_KEY: str = os.getenv("SUPABASE_ANON_KEY", os.getenv("SUPABASE_KEY", ""))
+    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
+    # Database (Supabase PostgreSQL Connection String)
+    # Automatically convert 'postgres://' (common in cloud providers) to 'postgresql://' for SQLAlchemy
+    _raw_db_url: str = os.getenv(
+        "DATABASE_URL",
+        os.getenv("SUPABASE_DB_URL", "")
+    )
+    if _raw_db_url.startswith("postgres://"):
+        _raw_db_url = _raw_db_url.replace("postgres://", "postgresql://", 1)
+    DATABASE_URL: str = _raw_db_url
     
     # OpenAI
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
