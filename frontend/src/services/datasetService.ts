@@ -198,7 +198,9 @@ export const datasetService = {
   },
 
   getDownloadUrl(datasetId: string, versionId: string): string {
-    return `/api/v1/datasets/${datasetId}/versions/${versionId}/download`;
+    const rawBaseUrl = (import.meta.env.VITE_API_URL as string | undefined) || '';
+    const base = rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
+    return `${base}/api/v1/datasets/${datasetId}/versions/${versionId}/download`;
   },
 
   async delete(id: string): Promise<{ success: boolean; message: string }> {

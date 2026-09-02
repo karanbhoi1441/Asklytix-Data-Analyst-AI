@@ -1,4 +1,5 @@
-const BASE_URL = '';
+const rawBaseUrl = (import.meta.env.VITE_API_URL as string | undefined) || '';
+export const BASE_URL = rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
 
 interface RequestOptions extends RequestInit {
   data?: any;
@@ -40,7 +41,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   // If unauthorized (401) and not already refreshing or logging in, attempt refresh
   if (response.status === 401 && !endpoint.includes('/auth/login') && !endpoint.includes('/auth/refresh')) {
     try {
-      const refreshRes = await fetch('/api/v1/auth/refresh', {
+      const refreshRes = await fetch(`${BASE_URL}/api/v1/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
       });
