@@ -77,7 +77,7 @@ export const Sidebar: React.FC = () => {
             <span>|</span>
             <a href="https://github.com/karanbhoi1441" target="_blank" rel="noreferrer" className="hover:text-cyan-400 transition-colors">GitHub</a>
             <span>|</span>
-            <a href="https://linkedin.com" target="_blank" rel="noreferrer" className="hover:text-blue-400 transition-colors">LinkedIn</a>
+            <a href="https://www.linkedin.com/in/karanbhoi2005" target="_blank" rel="noreferrer" className="hover:text-blue-400 transition-colors">LinkedIn</a>
           </div>
         )}
       </div>
