@@ -26,18 +26,42 @@ class Settings(BaseSettings):
     
     # Cookies
     COOKIE_SECURE: bool = os.getenv("COOKIE_SECURE", "false").lower() == "true"
-    COOKIE_SAMESITE: str = "lax"
-    COOKIE_DOMAIN: str | None = None
+    COOKIE_SAMESITE: str = os.getenv("COOKIE_SAMESITE", "lax")
+    COOKIE_DOMAIN: str | None = os.getenv("COOKIE_DOMAIN", None)
     
     # CORS
-    BACKEND_CORS_ORIGINS: List[str] = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:80",
-        "http://localhost",
-    ]
+    BACKEND_CORS_ORIGINS: List[str] = []
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        origins = [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "http://localhost:80",
+            "http://localhost",
+        ]
+        raw_cors = os.getenv("BACKEND_CORS_ORIGINS", os.getenv("CORS_ORIGINS", os.getenv("FRONTEND_URL", "")))
+        if raw_cors:
+            if raw_cors.strip().startswith("[") and raw_cors.strip().endswith("]"):
+                import json
+                try:
+                    parsed = json.loads(raw_cors)
+                    if isinstance(parsed, list):
+                        origins.extend(parsed)
+                except Exception:
+                    origins.extend([c.strip() for c in raw_cors.split(",") if c.strip()])
+            else:
+                origins.extend([c.strip() for c in raw_cors.split(",") if c.strip()])
+        # Deduplicate while preserving order
+        seen = set()
+        deduped = []
+        for o in origins:
+            if o and o not in seen:
+                seen.add(o)
+                deduped.append(o)
+        self.BACKEND_CORS_ORIGINS = deduped
     
     # Supabase Configuration
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")

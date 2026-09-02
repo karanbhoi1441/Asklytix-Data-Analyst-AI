@@ -8,7 +8,9 @@ export const App: React.FC = () => {
     const handleBeforeUnload = () => {
       try {
         // Send beacon to purge backend files on window/site close
-        navigator.sendBeacon('/api/v1/datasets/session/purge');
+        const rawBaseUrl = (import.meta.env.VITE_API_URL as string | undefined) || '';
+        const base = rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
+        navigator.sendBeacon(`${base}/api/v1/datasets/session/purge`);
       } catch {
         // ignore
       }
