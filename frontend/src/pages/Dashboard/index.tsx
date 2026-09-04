@@ -168,17 +168,33 @@ export const DashboardPage: React.FC = () => {
       const fileExt = resolvedName.includes('.') ? resolvedName.split('.').pop()?.toUpperCase() || 'CSV' : 'CSV';
 
       // Parse column schema definitions
-      const schemaDefs = activeDsMeta?.columnDefs || resolvedCols.map(c => {
-        const isId = /id|code|key/i.test(c);
-        const isNum = /salary|price|age|amount|count|total|rev|cost/i.test(c);
-        return {
-          name: c,
-          type: isId ? 'INTEGER' : isNum ? 'NUMERIC' : 'VARCHAR',
-          missingCount: 0,
-          missingPercent: 0,
-          uniqueCount: resolvedRows
-        };
-      });
+      const schemaDefs = (activeDsMeta?.columnDefs && activeDsMeta.columnDefs.length > 0)
+        ? activeDsMeta.columnDefs.map((c: any) => {
+            const miss = typeof c.missingCount === 'number' ? c.missingCount : (c.missing_count ?? (c.nonNullCount !== undefined ? Math.max(0, resolvedRows - c.nonNullCount) : 0));
+            const missPct = (c.missingPercent !== undefined && !isNaN(Number(c.missingPercent)))
+              ? Number(c.missingPercent)
+              : (resolvedRows > 0 ? parseFloat(((miss / resolvedRows) * 100).toFixed(1)) : 0);
+            const uniq = c.uniqueCount ?? c.uniqueValues ?? c.unique_count ?? c.unique_values ?? resolvedRows;
+            return {
+              name: c.name || c.column_name || 'Attribute',
+              type: c.type || c.raw_dtype || 'VARCHAR',
+              missingCount: miss,
+              missingPercent: missPct,
+              uniqueCount: uniq,
+              sampleValues: c.examples || c.sampleValues || []
+            };
+          })
+        : resolvedCols.map(c => {
+            const isId = /id|code|key/i.test(c);
+            const isNum = /salary|price|age|amount|count|total|rev|cost/i.test(c);
+            return {
+              name: c,
+              type: isId ? 'INTEGER' : isNum ? 'NUMERIC' : 'VARCHAR',
+              missingCount: 0,
+              missingPercent: 0,
+              uniqueCount: resolvedRows
+            };
+          });
 
       await generateAiExecutivePdfReport({
         datasetId: targetId,

@@ -239,18 +239,18 @@ export const ConnectDataSourcePage: React.FC = () => {
             >
               <div className="flex items-center gap-2.5">
                 <Layers className="w-4 h-4 text-purple-400 shrink-0" />
-                <span className="text-sm font-medium text-slate-200">Dashboard</span>
+                <span className="text-sm font-medium text-slate-200">Analysis Chat</span>
               </div>
             </motion.div>
           ) : (
             <div
               onClick={handleLockedClick}
               className="flex items-center justify-between px-3 py-2.5 rounded-xl select-none text-slate-600 cursor-not-allowed opacity-60 hover:opacity-80 transition-all"
-              title="Upload a dataset first to unlock Dashboard"
+              title="Upload a dataset first to unlock analysis chat"
             >
               <div className="flex items-center gap-2.5">
                 <Layers className="w-4 h-4 text-slate-600 shrink-0" />
-                <span className="text-sm font-medium text-slate-600">Dashboard</span>
+                <span className="text-sm font-medium text-slate-600">Analysis Chat</span>
               </div>
               <Lock className="w-3.5 h-3.5 text-slate-600" />
             </div>
@@ -265,7 +265,7 @@ export const ConnectDataSourcePage: React.FC = () => {
                 exit={{ opacity: 0, y: -4 }}
                 className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] text-center font-semibold"
               >
-                🔒 Upload a dataset first to unlock analysis & dashboard!
+                🔒 Upload a dataset first to unlock analysis & chat!
               </motion.div>
             )}
           </AnimatePresence>

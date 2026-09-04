@@ -7,7 +7,7 @@ export interface ColumnSchemaInfo {
   raw_dtype?: string;
   missingCount: number;
   missingPercent: number;
-  uniqueCount: number;
+  uniqueCount: number | string;
   sampleValues?: string[];
   min_val?: any;
   max_val?: any;
@@ -79,13 +79,13 @@ export interface ExecutiveReportData {
   columns?: string[];
 }
 
-const THEME_COLORS = [
+const THEME_COLORS: [number, number, number][] = [
   [99, 102, 241],   // indigo
   [6, 182, 212],    // cyan
-  [139, 92, 246],   // purple
   [16, 185, 129],   // emerald
   [245, 158, 11],   // amber
   [236, 72, 153],   // pink
+  [139, 92, 246],   // purple
   [59, 130, 246],   // blue
   [20, 184, 166],   // teal
   [244, 63, 94],    // rose
@@ -94,7 +94,6 @@ const THEME_COLORS = [
 
 /**
  * Generates a concise, natural dynamic AI explanation based strictly on actual visual data points.
- * Does NOT generate numbered lines (1., 2., 3...) and uses dynamic natural length.
  */
 export const generateNaturalAiVisualExplanation = (
   title: string,
@@ -106,8 +105,8 @@ export const generateNaturalAiVisualExplanation = (
 ): string => {
   const normType = (chartType || 'bar').toLowerCase();
 
-  // 1. KPI Metric Cards
-  if (normType.includes('kpi') || kpiValue !== undefined) {
+  // 1. KPI Metric Cards (strictly when chart is a KPI or metric)
+  if (normType.includes('kpi') || normType.includes('metric_card') || normType === 'kpi_metric') {
     const val = kpiValue ?? (dataPoints[0]?.value ?? 0);
     const metric = kpiMetric || title || 'Target Metric';
     const numVal = typeof val === 'number' ? val : parseFloat(String(val).replace(/[^0-9.-]/g, '')) || 0;
@@ -121,7 +120,7 @@ export const generateNaturalAiVisualExplanation = (
 
   // 2. Empty / Placeholder data points
   if (!dataPoints || dataPoints.length === 0) {
-    return `This visualization presents the distribution of ${title} computed across ${rowCount.toLocaleString()} active records in the dataset.`;
+    return `This visualization presents the analytical breakdown of ${title} computed across ${rowCount.toLocaleString()} active records in the dataset.`;
   }
 
   // Parse numeric values and sort descending
@@ -178,7 +177,7 @@ export const generateNaturalAiVisualExplanation = (
 };
 
 /**
- * Builds key values string for the visual
+ * Builds key values summary string for the visual
  */
 const extractKeyValuesSummary = (
   chartType: string,
@@ -186,10 +185,14 @@ const extractKeyValuesSummary = (
   kpiValue?: number | string,
   kpiMetric?: string
 ): string => {
-  if (chartType.toLowerCase().includes('kpi') || kpiValue !== undefined) {
+  const normType = (chartType || 'bar').toLowerCase();
+
+  // Only KPI charts should use the KPI value string
+  if (normType.includes('kpi') || normType.includes('metric_card') || normType === 'kpi_metric') {
     const val = kpiValue ?? (dataPoints?.[0]?.value ?? '—');
     const label = kpiMetric || 'Primary Value';
-    return `${label}: ${typeof val === 'number' ? val.toLocaleString() : val}`;
+    const numVal = typeof val === 'number' ? (val >= 1000 ? val.toLocaleString() : String(val)) : String(val);
+    return `${label}: ${numVal}`;
   }
 
   if (!dataPoints || dataPoints.length === 0) return '';
@@ -206,7 +209,7 @@ const extractKeyValuesSummary = (
     return `${p.label}: ${formatted}${pct}`;
   });
 
-  return topItems.join('  •  ');
+  return topItems.join('   •   ');
 };
 
 export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportData) => {
@@ -233,22 +236,22 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
 
   const renderSubHeader = () => {
     doc.setFillColor(15, 23, 42); // slate-900
-    doc.rect(margin, y, contentWidth, 12, 'F');
+    doc.rect(margin, y, contentWidth, 11, 'F');
     doc.setDrawColor(6, 182, 212); // cyan-500
-    doc.setLineWidth(0.4);
-    doc.line(margin, y + 12, pageWidth - margin, y + 12);
+    doc.setLineWidth(0.5);
+    doc.line(margin, y + 11, pageWidth - margin, y + 11);
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setTextColor(255, 255, 255);
-    doc.text('AskLytix  •  AI Data Analysis Report', margin + 4, y + 8);
+    doc.text('AskLytix  •  AI Data Analysis Report', margin + 4, y + 7.5);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(148, 163, 184);
-    doc.text(`Dataset: ${reportData.datasetName}`, pageWidth - margin - 4, y + 8, { align: 'right' });
+    doc.text(`Dataset: ${reportData.datasetName}`, pageWidth - margin - 4, y + 7.5, { align: 'right' });
 
-    y += 17;
+    y += 16;
   };
 
   // ════════════════════════════════════════════════════════════════════════
@@ -303,7 +306,7 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
   const sysCards = [
     { label: 'Dataset Name', value: reportData.datasetName },
     { label: 'Total Records', value: `${reportData.rowCount.toLocaleString()} Rows` },
-    { label: 'Total Columns', value: `${reportData.columnCount} Attributes` },
+    { label: 'Total Attributes', value: `${reportData.columnCount} Columns` },
     { label: 'Data Quality Health', value: `${qualityScore}% Verified` }
   ];
 
@@ -362,41 +365,59 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
     y += 15;
   }
 
-  // 1.3 Dataset Schema Table
+  // 1.3 Dataset Schema Table (Header: Attribute, Data Type, Missing Values, Unique Count)
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8.5);
   doc.setTextColor(51, 65, 85);
   doc.text('Dataset Schema & Attribute Definitions:', margin, y);
   y += 4;
 
-  const rawCols = reportData.columns || (reportData.schema?.map(s => s.name)) || ['Column'];
-  const schemaList: ColumnSchemaInfo[] = reportData.schema || rawCols.map(c => {
-    const isId = /id|code|key/i.test(c);
-    const isNum = /salary|price|age|amount|count|total|rev|cost/i.test(c);
-    return {
-      name: c,
-      type: isId ? 'INTEGER (ID)' : isNum ? 'NUMERIC (FLOAT)' : 'VARCHAR (TEXT)',
-      missingCount: 0,
-      missingPercent: 0,
-      uniqueCount: reportData.rowCount,
-      sampleValues: []
-    };
-  });
+  const rawCols = reportData.columns || (reportData.schema?.map(s => s.name)) || ['Attribute'];
+  const totalRecords = Math.max(reportData.rowCount, 1);
 
-  // Table Header
+  const schemaList: ColumnSchemaInfo[] = (reportData.schema && reportData.schema.length > 0)
+    ? reportData.schema.map(s => {
+        const miss = typeof s.missingCount === 'number' ? s.missingCount : ((s as any).missing_count ?? 0);
+        const missPct = (s.missingPercent !== undefined && !isNaN(Number(s.missingPercent)))
+          ? Number(s.missingPercent)
+          : parseFloat(((miss / totalRecords) * 100).toFixed(1));
+        const uniq = s.uniqueCount ?? (s as any).uniqueValues ?? (s as any).unique_count ?? totalRecords;
+        return {
+          name: s.name || 'Attribute',
+          type: s.type || s.raw_dtype || 'VARCHAR',
+          missingCount: miss,
+          missingPercent: missPct,
+          uniqueCount: uniq,
+          sampleValues: s.sampleValues || []
+        };
+      })
+    : rawCols.map(c => {
+        const isId = /id|code|key/i.test(c);
+        const isNum = /salary|price|age|amount|count|total|rev|cost/i.test(c);
+        return {
+          name: c,
+          type: isId ? 'INTEGER (ID)' : isNum ? 'NUMERIC (FLOAT)' : 'VARCHAR (TEXT)',
+          missingCount: 0,
+          missingPercent: 0,
+          uniqueCount: totalRecords,
+          sampleValues: []
+        };
+      });
+
+  // Table Header (Replacing 'Column Name' with 'Attribute')
   doc.setFillColor(15, 23, 42);
   doc.rect(margin, y, contentWidth, 5.5, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(6.8);
   doc.setTextColor(255, 255, 255);
-  doc.text('Column Name', margin + 3, y + 3.8);
+  doc.text('Attribute', margin + 3, y + 3.8);
   doc.text('Data Type', margin + 55, y + 3.8);
   doc.text('Missing Values', margin + 105, y + 3.8);
   doc.text('Unique Count', margin + 145, y + 3.8);
 
   y += 5.5;
 
-  schemaList.slice(0, 10).forEach((col, idx) => {
+  schemaList.slice(0, 12).forEach((col, idx) => {
     const isEven = idx % 2 === 0;
     doc.setFillColor(isEven ? 248 : 255, isEven ? 250 : 255, isEven ? 252 : 255);
     doc.rect(margin, y, contentWidth, 5, 'F');
@@ -414,11 +435,16 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
     doc.text(typeLabel, margin + 55, y + 3.5);
 
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(col.missingCount > 0 ? 185 : 22, col.missingCount > 0 ? 28 : 101, col.missingCount > 0 ? 28 : 52);
-    doc.text(`${col.missingCount} (${col.missingPercent ?? 0}%)`, margin + 105, y + 3.5);
+    const missCnt = typeof col.missingCount === 'number' ? col.missingCount : 0;
+    const missPct = typeof col.missingPercent === 'number' ? col.missingPercent : 0;
+    doc.setTextColor(missCnt > 0 ? 185 : 22, missCnt > 0 ? 28 : 101, missCnt > 0 ? 28 : 52);
+    doc.text(`${missCnt.toLocaleString()} (${missPct}%)`, margin + 105, y + 3.5);
 
     doc.setTextColor(100, 116, 139);
-    doc.text(`${col.uniqueCount ?? '—'} unique`, margin + 145, y + 3.5);
+    const uniqDisplay = (col.uniqueCount !== undefined && col.uniqueCount !== null && col.uniqueCount !== '—')
+      ? `${typeof col.uniqueCount === 'number' ? col.uniqueCount.toLocaleString() : col.uniqueCount} unique`
+      : `${totalRecords.toLocaleString()} unique`;
+    doc.text(uniqDisplay, margin + 145, y + 3.5);
 
     y += 5;
   });
@@ -446,7 +472,7 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
   const findingsList: string[] = [];
 
   // Finding 1: Volume & Schema Integrity
-  findingsList.push(`Dataset Scope & Integrity: Evaluated ${reportData.rowCount.toLocaleString()} total rows across ${reportData.columnCount} columns with ${qualityScore}% overall data health score and zero unhandled schema corruption.`);
+  findingsList.push(`Dataset Scope & Integrity: Evaluated ${reportData.rowCount.toLocaleString()} total rows across ${reportData.columnCount} attributes with ${qualityScore}% overall data health score and zero unhandled schema corruption.`);
 
   // Finding 2: Numerical bounds & statistics from actual schema
   if (numericCols.length > 0) {
@@ -482,8 +508,7 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.setTextColor(51, 65, 85);
-  
-  // Overview paragraph inside card
+
   const splitOverview = doc.splitTextToSize(overviewText, contentWidth - 8);
   doc.text(splitOverview, margin + 4, y + 5);
 
@@ -520,7 +545,8 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
         }))
       : [];
 
-    const kpiVal = v.kpiValue ?? v.spec?.value ?? v.value ?? (chartType === 'kpi' && dataPoints[0]?.value);
+    const isKpiType = chartType.toLowerCase().includes('kpi') || chartType === 'metric_card';
+    const kpiVal = isKpiType ? (v.kpiValue ?? v.spec?.value ?? v.value ?? dataPoints[0]?.value) : undefined;
     const base64Img = v.base64_image || v.base64Image;
 
     const explanation = typeof v.explanation === 'string' && v.explanation.trim().length > 10
@@ -566,170 +592,251 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
       const vis = normalizedVisuals[i];
       const visNumberStr = String(vis.chartNumber).padStart(2, '0');
 
-      // Check required space for visual card (~80mm)
-      checkPageBreak(82);
+      // Generous height allocation for well-proportioned visual card (~105mm)
+      checkPageBreak(105);
 
       const cardStartY = y;
 
-      // Card Header Banner
+      // ── Card Header Banner ──
       doc.setFillColor(15, 23, 42);
-      doc.roundedRect(margin, y, contentWidth, 7.5, 1.5, 1.5, 'F');
+      doc.roundedRect(margin, y, contentWidth, 8, 1.5, 1.5, 'F');
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
       doc.setTextColor(255, 255, 255);
-      doc.text(`VISUALIZATION ${visNumberStr}`, margin + 3.5, y + 5);
+      doc.text(`VISUALIZATION ${visNumberStr}`, margin + 3.5, y + 5.2);
 
+      // Cyan Pill Badge for Chart Type
+      const typeStr = `TYPE: ${vis.chartType.toUpperCase().replace(/_/g, ' ')}`;
       doc.setTextColor(6, 182, 212);
-      doc.text(`TYPE: ${vis.chartType.toUpperCase().replace(/_/g, ' ')}`, pageWidth - margin - 4, y + 5, { align: 'right' });
+      doc.setFontSize(7.5);
+      doc.text(typeStr, pageWidth - margin - 4, y + 5.2, { align: 'right' });
 
-      y += 9.5;
+      y += 11.5;
 
-      // Title & User Analysis Query line
+      // ── Clean Visual Title ──
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(8.5);
+      doc.setFontSize(9.5);
       doc.setTextColor(15, 23, 42);
-      doc.text(`Title: ${vis.title}`, margin + 3.5, y);
-      y += 4;
+      doc.text(vis.title, margin + 3.5, y);
+      y += 5;
 
-      // ── RENDER STATIC VISUAL ──
+      // ── VISUAL CHART CANVAS ──
       const visualAreaX = margin + 3.5;
-      const visualAreaY = y;
       const visualAreaW = contentWidth - 7;
-      const visualAreaH = 38;
+      let visualAreaH = 58; // Generous height to prevent squishing
 
       let renderedImage = false;
 
-      // 1. Try rendering embedded base64 image if available
+      // 1. Try rendering embedded base64 image with preserved aspect ratio
       if (vis.base64Image && typeof vis.base64Image === 'string' && vis.base64Image.startsWith('data:image')) {
         try {
-          doc.addImage(vis.base64Image, 'PNG', visualAreaX + 15, visualAreaY, visualAreaW - 30, visualAreaH);
+          const imgProps = doc.getImageProperties(vis.base64Image);
+          const aspect = (imgProps && imgProps.width && imgProps.height) ? (imgProps.width / imgProps.height) : (16 / 9);
+
+          let drawW = visualAreaW;
+          let drawH = drawW / aspect;
+
+          // Limit max height to 62mm to fit comfortably
+          if (drawH > 62) {
+            drawH = 62;
+            drawW = drawH * aspect;
+          }
+          if (drawW > visualAreaW) {
+            drawW = visualAreaW;
+            drawH = drawW / aspect;
+          }
+
+          const drawX = visualAreaX + (visualAreaW - drawW) / 2;
+
+          // Backing frame
+          doc.setFillColor(248, 250, 252);
+          doc.roundedRect(visualAreaX, y, visualAreaW, drawH + 3, 1.5, 1.5, 'F');
+          doc.setDrawColor(226, 232, 240);
+          doc.roundedRect(visualAreaX, y, visualAreaW, drawH + 3, 1.5, 1.5, 'S');
+
+          doc.addImage(vis.base64Image, 'PNG', drawX, y + 1.5, drawW, drawH);
           renderedImage = true;
+          visualAreaH = drawH + 3;
         } catch (imgErr) {
           console.warn('PDF image embed notice:', imgErr);
           renderedImage = false;
         }
       }
 
-      // 2. Vector static visual drawing fallback (matches exact dataset points)
+      // 2. High-Quality Vector Fallback Drawing (Clean, modern executive styling)
       if (!renderedImage) {
+        visualAreaH = 54;
         doc.setFillColor(248, 250, 252);
-        doc.roundedRect(visualAreaX, visualAreaY, visualAreaW, visualAreaH, 1.5, 1.5, 'F');
+        doc.roundedRect(visualAreaX, y, visualAreaW, visualAreaH, 1.5, 1.5, 'F');
         doc.setDrawColor(226, 232, 240);
-        doc.roundedRect(visualAreaX, visualAreaY, visualAreaW, visualAreaH, 1.5, 1.5, 'S');
+        doc.roundedRect(visualAreaX, y, visualAreaW, visualAreaH, 1.5, 1.5, 'S');
 
         const normType = vis.chartType.toLowerCase();
 
-        // 2.1 KPI Metric Static Visual
+        // 2.1 KPI Metric Card Vector
         if (normType.includes('kpi') || vis.kpiValue !== undefined) {
           const valStr = String(vis.kpiValue ?? (vis.dataPoints?.[0]?.value ?? '100'));
+          
+          doc.setFillColor(240, 249, 255);
+          doc.roundedRect(visualAreaX + 15, y + 6, visualAreaW - 30, visualAreaH - 12, 2, 2, 'F');
+          doc.setDrawColor(6, 182, 212);
+          doc.setLineWidth(0.6);
+          doc.roundedRect(visualAreaX + 15, y + 6, visualAreaW - 30, visualAreaH - 12, 2, 2, 'S');
+
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(16);
+          doc.setFontSize(22);
           doc.setTextColor(14, 116, 144);
-          doc.text(valStr, visualAreaX + visualAreaW / 2, visualAreaY + 18, { align: 'center' });
+          doc.text(valStr, visualAreaX + visualAreaW / 2, y + 24, { align: 'center' });
+
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8.5);
+          doc.setTextColor(71, 85, 105);
+          doc.text((vis.kpiMetric || vis.title).toUpperCase(), visualAreaX + visualAreaW / 2, y + 33, { align: 'center' });
 
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(7.5);
-          doc.setTextColor(100, 116, 139);
-          doc.text(vis.kpiMetric || vis.title, visualAreaX + visualAreaW / 2, visualAreaY + 26, { align: 'center' });
+          doc.setFontSize(7);
+          doc.setTextColor(148, 163, 184);
+          doc.text(`Calculated across ${reportData.rowCount.toLocaleString()} active records`, visualAreaX + visualAreaW / 2, y + 39, { align: 'center' });
         }
-        // 2.2 Pie / Donut Static Visual
+        // 2.2 Pie / Donut Chart Vector
         else if (normType.includes('pie') || normType.includes('donut')) {
-          const pts = vis.dataPoints || [];
+          const pts = (vis.dataPoints && vis.dataPoints.length > 0) ? vis.dataPoints : [
+            { label: 'Segment A', value: 40 },
+            { label: 'Segment B', value: 30 },
+            { label: 'Segment C', value: 20 },
+            { label: 'Segment D', value: 10 }
+          ];
           const totalVal = pts.reduce((acc, p) => acc + (typeof p.value === 'number' ? p.value : parseFloat(String(p.value)) || 1), 0) || 1;
-          const pieCenterX = visualAreaX + 35;
-          const pieCenterY = visualAreaY + visualAreaH / 2;
-          const pieRadius = 14;
+          const pieCenterX = visualAreaX + 38;
+          const pieCenterY = y + visualAreaH / 2;
+          const pieRadius = 19;
 
-          // Simple static pie slice representations
-          pts.slice(0, 5).forEach((p, idx) => {
-            const rgb = THEME_COLORS[idx % THEME_COLORS.length];
-            doc.setFillColor(rgb[0], rgb[1], rgb[2]);
-            doc.rect(visualAreaX + 75, visualAreaY + 5 + idx * 6, 4, 4, 'F');
-
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(6.8);
-            doc.setTextColor(51, 65, 85);
-            const num = typeof p.value === 'number' ? p.value : parseFloat(String(p.value)) || 0;
-            const pct = ((num / totalVal) * 100).toFixed(1);
-            doc.text(`${p.label}: ${num.toLocaleString()} (${pct}%)`, visualAreaX + 82, visualAreaY + 8 + idx * 6);
-          });
-
-          // Draw circle
-          doc.setFillColor(6, 182, 212);
+          // Donut base circle
+          doc.setFillColor(99, 102, 241);
           doc.circle(pieCenterX, pieCenterY, pieRadius, 'F');
           doc.setFillColor(248, 250, 252);
-          doc.circle(pieCenterX, pieCenterY, pieRadius * 0.55, 'F');
+          doc.circle(pieCenterX, pieCenterY, pieRadius * 0.58, 'F');
+
+          // Center Text
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(6.5);
+          doc.setTextColor(100, 116, 139);
+          doc.text('TOTAL', pieCenterX, pieCenterY - 1.5, { align: 'center' });
+          doc.setFontSize(9);
           doc.setTextColor(15, 23, 42);
-          doc.text('TOTAL', pieCenterX, pieCenterY - 1, { align: 'center' });
-          doc.text(String(totalVal), pieCenterX, pieCenterY + 3.5, { align: 'center' });
+          doc.text(totalVal.toLocaleString(), pieCenterX, pieCenterY + 3.5, { align: 'center' });
+
+          // Legend items on the right side
+          const legendStartX = visualAreaX + 72;
+          const maxLegend = Math.min(pts.length, 6);
+          const rowSpacing = Math.min(7.5, (visualAreaH - 8) / maxLegend);
+
+          pts.slice(0, maxLegend).forEach((p, idx) => {
+            const rgb = THEME_COLORS[idx % THEME_COLORS.length];
+            const itemY = y + 7 + idx * rowSpacing;
+
+            // Color swatch
+            doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+            doc.roundedRect(legendStartX, itemY, 4.5, 4.5, 0.8, 0.8, 'F');
+
+            // Category Label & Values
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(7.2);
+            doc.setTextColor(15, 23, 42);
+            const num = typeof p.value === 'number' ? p.value : parseFloat(String(p.value)) || 0;
+            const pct = ((num / totalVal) * 100).toFixed(1);
+            const lbl = p.label.length > 18 ? p.label.slice(0, 17) + '..' : p.label;
+            doc.text(`${lbl}:`, legendStartX + 7, itemY + 3.6);
+
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(71, 85, 105);
+            doc.text(`${num.toLocaleString()}  (${pct}%)`, legendStartX + 42, itemY + 3.6);
+          });
         }
-        // 2.3 Bar / Scatter / Line Chart Static Visual
+        // 2.3 Bar / Column Chart Vector
         else {
           const pts = (vis.dataPoints && vis.dataPoints.length > 0)
-            ? vis.dataPoints.slice(0, 6)
-            : [{ label: 'Item A', value: 30 }, { label: 'Item B', value: 65 }, { label: 'Item C', value: 45 }];
+            ? vis.dataPoints.slice(0, 7)
+            : [{ label: 'Item A', value: 35 }, { label: 'Item B', value: 70 }, { label: 'Item C', value: 45 }, { label: 'Item D', value: 60 }];
 
           const maxVal = Math.max(...pts.map(p => typeof p.value === 'number' ? p.value : parseFloat(String(p.value)) || 1), 1);
-          const barPadLeft = visualAreaX + 15;
-          const barPadBottom = visualAreaY + visualAreaH - 7;
-          const chartH = visualAreaH - 12;
-          const chartW = visualAreaW - 30;
+          const barPadLeft = visualAreaX + 16;
+          const barPadBottom = y + visualAreaH - 9;
+          const chartH = visualAreaH - 16;
+          const chartW = visualAreaW - 32;
 
-          // Axis lines
-          doc.setDrawColor(203, 213, 225);
+          // Axis lines & grid
+          doc.setDrawColor(226, 232, 240);
           doc.setLineWidth(0.3);
-          doc.line(barPadLeft, visualAreaY + 4, barPadLeft, barPadBottom);
+          doc.line(barPadLeft, y + 6, barPadLeft + chartW, y + 6);
+          doc.line(barPadLeft, y + 6 + chartH / 2, barPadLeft + chartW, y + 6 + chartH / 2);
+          doc.setDrawColor(203, 213, 225);
           doc.line(barPadLeft, barPadBottom, barPadLeft + chartW, barPadBottom);
 
           pts.forEach((p, idx) => {
             const num = typeof p.value === 'number' ? p.value : parseFloat(String(p.value)) || 0;
             const barH = (num / maxVal) * chartH;
-            const barW = Math.min((chartW / pts.length) * 0.6, 12);
-            const bx = barPadLeft + (idx + 0.5) * (chartW / pts.length) - barW / 2;
+            const slotW = chartW / pts.length;
+            const barW = Math.min(slotW * 0.6, 14);
+            const bx = barPadLeft + (idx + 0.5) * slotW - barW / 2;
             const by = barPadBottom - barH;
 
             const rgb = THEME_COLORS[idx % THEME_COLORS.length];
             doc.setFillColor(rgb[0], rgb[1], rgb[2]);
-            doc.roundedRect(bx, by, barW, Math.max(barH, 1.5), 0.8, 0.8, 'F');
+            doc.roundedRect(bx, by, barW, Math.max(barH, 1.5), 1, 1, 'F');
 
-            doc.setFont('helvetica', 'normal');
+            // Value badge on top of bar
+            doc.setFont('helvetica', 'bold');
             doc.setFontSize(5.8);
+            doc.setTextColor(71, 85, 105);
+            doc.text(num >= 1000 ? `${(num / 1000).toFixed(1)}k` : String(num), bx + barW / 2, by - 1.5, { align: 'center' });
+
+            // Category Label below bar
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(6.2);
             doc.setTextColor(100, 116, 139);
-            const lbl = p.label.length > 8 ? p.label.slice(0, 7) + '..' : p.label;
-            doc.text(lbl, bx + barW / 2, barPadBottom + 3.5, { align: 'center' });
+            const lbl = p.label.length > 9 ? p.label.slice(0, 8) + '..' : p.label;
+            doc.text(lbl, bx + barW / 2, barPadBottom + 4.2, { align: 'center' });
           });
         }
       }
 
       y += visualAreaH + 4;
 
-      // ── AI EXPLANATION ──
+      // ── AI EXPLANATION BOX ──
+      const explanationText = vis.aiExplanation || 'Analyzed and rendered from active dataset records.';
+      const splitExplanation = doc.splitTextToSize(explanationText, contentWidth - 10);
+      const explanationHeight = 8 + splitExplanation.length * 3.4;
+
+      doc.setFillColor(240, 249, 255);
+      doc.roundedRect(margin + 3.5, y, contentWidth - 7, explanationHeight, 1.2, 1.2, 'F');
+      doc.setDrawColor(186, 230, 253);
+      doc.roundedRect(margin + 3.5, y, contentWidth - 7, explanationHeight, 1.2, 1.2, 'S');
+
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(7.5);
-      doc.setTextColor(15, 23, 42);
-      doc.text('AI Explanation:', margin + 3.5, y);
-      y += 3.5;
+      doc.setFontSize(7.2);
+      doc.setTextColor(14, 116, 144);
+      doc.text('AI Analytical Interpretation:', margin + 6, y + 4.2);
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7);
+      doc.setFontSize(6.8);
       doc.setTextColor(51, 65, 85);
-      const splitExplanation = doc.splitTextToSize(vis.aiExplanation || 'Analyzed and rendered from active dataset records.', contentWidth - 8);
-      doc.text(splitExplanation, margin + 3.5, y);
-      y += splitExplanation.length * 3.4 + 2;
+      doc.text(splitExplanation, margin + 6, y + 8);
 
-      // ── KEY VALUES ──
+      y += explanationHeight + 3.5;
+
+      // ── KEY VALUES BREAKDOWN ──
       if (vis.keyValues && vis.keyValues.trim().length > 0) {
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7);
+        doc.setFontSize(6.8);
         doc.setTextColor(14, 116, 144);
-        doc.text('Key Values:  ', margin + 3.5, y);
+        doc.text('Key Breakdown:  ', margin + 4, y + 2);
 
         doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.8);
         doc.setTextColor(71, 85, 105);
-        const splitKeyVals = doc.splitTextToSize(vis.keyValues, contentWidth - 25);
-        doc.text(splitKeyVals, margin + 20, y);
+        const splitKeyVals = doc.splitTextToSize(vis.keyValues, contentWidth - 32);
+        doc.text(splitKeyVals, margin + 26, y + 2);
         y += splitKeyVals.length * 3.2 + 2;
       }
 
@@ -739,7 +846,7 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
       doc.setLineWidth(0.4);
       doc.roundedRect(margin, cardStartY, contentWidth, totalCardHeight, 2, 2, 'S');
 
-      y += 6;
+      y += 7;
     }
   }
 
@@ -790,3 +897,4 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
     URL.revokeObjectURL(blobUrl);
   }, 1000);
 };
+

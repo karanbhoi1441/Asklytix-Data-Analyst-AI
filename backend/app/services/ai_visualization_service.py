@@ -1470,8 +1470,8 @@ counts = df['{target_cat}'].dropna().astype(str).value_counts().head(8)
 total_count = counts.sum()
 percentages = (counts / total_count) * 100
 
-fig, ax = plt.subplots(figsize=(9.5, 5.5), dpi=160)
-colors = ['#6366f1', '#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#14b8a6'][:len(counts)]
+fig, ax = plt.subplots(figsize=(9.5, 5.2), dpi=180)
+colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#14b8a6'][:len(counts)]
 
 wedges, texts, autotexts = ax.pie(
     counts.values,
@@ -1479,13 +1479,13 @@ wedges, texts, autotexts = ax.pie(
     autopct='%1.1f%%',
     startangle=140,
     colors=colors,
-    wedgeprops=dict(edgecolor='#0a0e1a', linewidth=2.0),
-    pctdistance=0.7
+    wedgeprops=dict(edgecolor='#0a0f1d', linewidth=2.0),
+    pctdistance=0.72
 )
 
 for autotext in autotexts:
     autotext.set_color('#ffffff')
-    autotext.set_fontsize(9.5)
+    autotext.set_fontsize(10.5)
     autotext.set_weight('bold')
 
 legend_labels = [f"{{k}} ({{v:,}} • {{p:.1f}}%)" for k, v, p in zip(counts.index, counts.values, percentages)]
@@ -1496,14 +1496,15 @@ ax.legend(
     loc="center left", 
     bbox_to_anchor=(1.02, 0.5),
     frameon=True,
-    facecolor='#0d1322',
-    edgecolor='#1e293b',
-    fontsize=9
+    facecolor='#0f172a',
+    edgecolor='#334155',
+    fontsize=10,
+    title_fontsize=11
 )
 
-ax.set_title("{title}", fontsize=13, fontweight='bold', pad=15, color='#ffffff')
+ax.set_title("{title}", fontsize=13.5, fontweight='bold', pad=16, color='#ffffff')
 plt.tight_layout()
-plt.savefig(output_path, dpi=160, bbox_inches='tight', facecolor='#0a0e1a', edgecolor='none')
+plt.savefig(output_path, dpi=180, bbox_inches='tight', facecolor='#0a0f1d', edgecolor='none')
 plt.close('all')
 """
             else:
@@ -1542,8 +1543,8 @@ agg_s = df.dropna(subset=['{target_cat}', '{target_num}']).groupby('{target_cat}
 total_val = agg_s.sum()
 percentages = (agg_s / total_val) * 100
 
-fig, ax = plt.subplots(figsize=(9.5, 5.5), dpi=160)
-colors = ['#6366f1', '#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899', '#3b82f6', '#14b8a6'][:len(agg_s)]
+fig, ax = plt.subplots(figsize=(9.5, 5.2), dpi=180)
+colors = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#14b8a6'][:len(agg_s)]
 
 wedges, texts, autotexts = ax.pie(
     agg_s.values,
@@ -1551,13 +1552,13 @@ wedges, texts, autotexts = ax.pie(
     autopct='%1.1f%%',
     startangle=140,
     colors=colors,
-    wedgeprops=dict(width=0.5, edgecolor='#0a0e1a', linewidth=2.0),
+    wedgeprops=dict(width=0.5, edgecolor='#0a0f1d', linewidth=2.0),
     pctdistance=0.75
 )
 
 for autotext in autotexts:
     autotext.set_color('#ffffff')
-    autotext.set_fontsize(9.5)
+    autotext.set_fontsize(10.5)
     autotext.set_weight('bold')
 
 legend_labels = [f"{{k}} ({{p:.1f}}%)" for k, p in zip(agg_s.index, percentages)]
@@ -1568,14 +1569,15 @@ ax.legend(
     loc="center left", 
     bbox_to_anchor=(1.02, 0.5),
     frameon=True,
-    facecolor='#0d1322',
-    edgecolor='#1e293b',
-    fontsize=9
+    facecolor='#0f172a',
+    edgecolor='#334155',
+    fontsize=10,
+    title_fontsize=11
 )
 
-ax.set_title("{title}", fontsize=13, fontweight='bold', pad=15, color='#ffffff')
+ax.set_title("{title}", fontsize=13.5, fontweight='bold', pad=16, color='#ffffff')
 plt.tight_layout()
-plt.savefig(output_path, dpi=160, bbox_inches='tight', facecolor='#0a0e1a', edgecolor='none')
+plt.savefig(output_path, dpi=180, bbox_inches='tight', facecolor='#0a0f1d', edgecolor='none')
 plt.close('all')
 """
 

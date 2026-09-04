@@ -18,7 +18,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({ isCollapsed, onItemClick
   const mainItems = [
     { label: 'Data Source', path: '/connect', icon: Database },
     { label: 'Data Health & Clean', path: '/ask', icon: MessageSquare, badge: 'AI' },
-    { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { label: 'Analysis Chat', path: '/dashboard', icon: LayoutDashboard },
   ];
 
   const bottomItems = [

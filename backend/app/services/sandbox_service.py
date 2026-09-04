@@ -74,18 +74,25 @@ try:
 except Exception:
     pass
 
-# Apply AskLytix Dark Cyber Aesthetic for Matplotlib fallback
+# Apply AskLytix High-Res Aesthetic for Matplotlib
 plt.style.use('dark_background')
-plt.rcParams['figure.facecolor'] = '#070b16'
-plt.rcParams['axes.facecolor'] = '#0b1122'
-plt.rcParams['axes.edgecolor'] = '#1e293b'
-plt.rcParams['axes.labelcolor'] = '#94a3b8'
+plt.rcParams['figure.dpi'] = 180
+plt.rcParams['savefig.dpi'] = 180
+plt.rcParams['figure.facecolor'] = '#0a0f1d'
+plt.rcParams['axes.facecolor'] = '#0f172a'
+plt.rcParams['axes.edgecolor'] = '#334155'
+plt.rcParams['axes.labelcolor'] = '#cbd5e1'
+plt.rcParams['axes.titlesize'] = 13
+plt.rcParams['axes.labelsize'] = 10.5
 plt.rcParams['xtick.color'] = '#94a3b8'
 plt.rcParams['ytick.color'] = '#94a3b8'
+plt.rcParams['xtick.labelsize'] = 9.5
+plt.rcParams['ytick.labelsize'] = 9.5
 plt.rcParams['grid.color'] = '#1e293b'
 plt.rcParams['grid.linestyle'] = '--'
-plt.rcParams['grid.alpha'] = 0.4
+plt.rcParams['grid.alpha'] = 0.5
 plt.rcParams['text.color'] = '#f8fafc'
+plt.rcParams['legend.fontsize'] = 9.5
 plt.rcParams['font.sans-serif'] = ['Inter', 'Segoe UI', 'DejaVu Sans', 'Arial']
 
 # Load dataset into df
