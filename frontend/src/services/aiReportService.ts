@@ -329,9 +329,49 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
     doc.text(valStr.length > 20 ? valStr.slice(0, 18) + '...' : valStr, cx + 3, y + 10.5);
   });
 
-  y += 20;
+  y += 18;
 
-  // Schema list computation for Section 2 AI Analysis
+  // 1.2 Quality Metrics Breakdown Row
+  if (reportData.dataQuality) {
+    const dq = reportData.dataQuality;
+    const dqMetrics = [
+      { label: 'Completeness', val: `${dq.completeness ?? 100}%` },
+      { label: 'Uniqueness', val: `${dq.uniqueness ?? 100}%` },
+      { label: 'Consistency', val: `${dq.consistency ?? 100}%` },
+      { label: 'Validity', val: `${dq.validity ?? 100}%` },
+      { label: 'Total Missing', val: `${dq.missingTotal ?? 0} cells` },
+      { label: 'Duplicate Rows', val: `${dq.duplicatesTotal ?? 0} rows` }
+    ];
+
+    const dqCardW = (contentWidth - 10) / dqMetrics.length;
+    dqMetrics.forEach((m, idx) => {
+      const qx = margin + idx * (dqCardW + 2);
+      doc.setFillColor(240, 249, 255);
+      doc.roundedRect(qx, y, dqCardW, 11, 1, 1, 'F');
+      doc.setDrawColor(186, 230, 253);
+      doc.roundedRect(qx, y, dqCardW, 11, 1, 1, 'S');
+
+      doc.setFontSize(6);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(14, 116, 144);
+      doc.text(m.label, qx + 2.5, y + 3.8);
+
+      doc.setFontSize(7.5);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(15, 23, 42);
+      doc.text(m.val, qx + 2.5, y + 8.5);
+    });
+
+    y += 15;
+  }
+
+  // 1.3 Dataset Schema Table (Header: Attribute, Data Type, Missing Values, Unique Count)
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8.5);
+  doc.setTextColor(51, 65, 85);
+  doc.text('Dataset Schema & Attribute Definitions:', margin, y);
+  y += 4;
+
   const rawCols = reportData.columns || (reportData.schema?.map(s => s.name)) || ['Attribute'];
   const totalRecords = Math.max(reportData.rowCount, 1);
 
@@ -363,6 +403,53 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
           sampleValues: []
         };
       });
+
+  // Table Header (Replacing 'Column Name' with 'Attribute')
+  doc.setFillColor(15, 23, 42);
+  doc.rect(margin, y, contentWidth, 5.5, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.8);
+  doc.setTextColor(255, 255, 255);
+  doc.text('Attribute', margin + 3, y + 3.8);
+  doc.text('Data Type', margin + 55, y + 3.8);
+  doc.text('Missing Values', margin + 105, y + 3.8);
+  doc.text('Unique Count', margin + 145, y + 3.8);
+
+  y += 5.5;
+
+  schemaList.slice(0, 12).forEach((col, idx) => {
+    const isEven = idx % 2 === 0;
+    doc.setFillColor(isEven ? 248 : 255, isEven ? 250 : 255, isEven ? 252 : 255);
+    doc.rect(margin, y, contentWidth, 5, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.line(margin, y + 5, pageWidth - margin, y + 5);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.8);
+    doc.setTextColor(15, 23, 42);
+    doc.text(col.name, margin + 3, y + 3.5);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(14, 116, 144);
+    const typeLabel = (col.type || 'text').toUpperCase();
+    doc.text(typeLabel, margin + 55, y + 3.5);
+
+    doc.setFont('helvetica', 'normal');
+    const missCnt = typeof col.missingCount === 'number' ? col.missingCount : 0;
+    const missPct = typeof col.missingPercent === 'number' ? col.missingPercent : 0;
+    doc.setTextColor(missCnt > 0 ? 185 : 22, missCnt > 0 ? 28 : 101, missCnt > 0 ? 28 : 52);
+    doc.text(`${missCnt.toLocaleString()} (${missPct}%)`, margin + 105, y + 3.5);
+
+    doc.setTextColor(100, 116, 139);
+    const uniqDisplay = (col.uniqueCount !== undefined && col.uniqueCount !== null && col.uniqueCount !== '—')
+      ? `${typeof col.uniqueCount === 'number' ? col.uniqueCount.toLocaleString() : col.uniqueCount} unique`
+      : `${totalRecords.toLocaleString()} unique`;
+    doc.text(uniqDisplay, margin + 145, y + 3.5);
+
+    y += 5;
+  });
+
+  y += 7;
 
   // ════════════════════════════════════════════════════════════════════════
   // ── SECTION 2 — DATA ANALYST AI ANALYSIS ──
@@ -447,41 +534,7 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
   checkPageBreak(65);
 
   const rawVisuals = reportData.visualizations || [];
-  
-  // Strict deduplication to ensure exactly one instance per unique visual
-  const seenVisualTitles = new Set<string>();
-  const seenVisualIds = new Set<string>();
-  const seenImageSignatures = new Set<string>();
-  const uniqueVisuals: any[] = [];
-
-  for (const v of rawVisuals) {
-    if (!v) continue;
-
-    const rawTitle = (v.title || v.user_question || v.userQuestion || '').trim();
-    const normTitle = rawTitle.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const idStr = String(v.id || '').trim();
-    const rawImg = v.base64_image || v.base64Image || v.image_url || v.imageUrl;
-    const imgSig = typeof rawImg === 'string' && rawImg.length > 30 ? rawImg.slice(0, 120) : '';
-
-    // If we have already seen this title, ID, or image, skip it as a duplicate
-    if (normTitle && seenVisualTitles.has(normTitle)) {
-      continue;
-    }
-    if (idStr && seenVisualIds.has(idStr)) {
-      continue;
-    }
-    if (imgSig && seenImageSignatures.has(imgSig)) {
-      continue;
-    }
-
-    if (normTitle) seenVisualTitles.add(normTitle);
-    if (idStr) seenVisualIds.add(idStr);
-    if (imgSig) seenImageSignatures.add(imgSig);
-
-    uniqueVisuals.push(v);
-  }
-
-  const normalizedVisuals: VisualizationReportItem[] = uniqueVisuals.map((v: any, idx: number) => {
+  const normalizedVisuals: VisualizationReportItem[] = rawVisuals.map((v: any, idx: number) => {
     const chartType = v.chart_type || v.type || 'bar';
     const title = v.title || v.user_question || `Visualization #${idx + 1}`;
     const rawData = v.data || v.spec?.data || [];

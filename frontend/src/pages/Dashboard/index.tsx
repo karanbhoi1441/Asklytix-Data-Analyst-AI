@@ -132,32 +132,11 @@ export const DashboardPage: React.FC = () => {
         }
       }
 
-      // Include canvas widgets if available and not already in saved visuals (strictly deduplicated)
+      // Include canvas widgets if available and not already in saved visuals
       if (widgets && widgets.length > 0) {
-        const existingTitles = new Set<string>();
-        const existingIds = new Set<string>();
-        const existingImgs = new Set<string>();
-
-        currentVisuals.forEach(v => {
-          if (v.id) existingIds.add(String(v.id));
-          const t = (v.title || v.user_question || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-          if (t) existingTitles.add(t);
-          const img = (v.base64_image || v.base64Image || v.image_url || v.imageUrl || '');
-          if (img.length > 30) existingImgs.add(img.slice(0, 120));
-        });
-
+        const existingIds = new Set(currentVisuals.map(v => v.id));
         const widgetVisuals: SavedVisualizationItem[] = widgets
-          .filter(w => {
-            if (!w) return false;
-            const wId = String(w.id || '');
-            const wTitle = (w.title || w.user_question || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-            const wImg = (w.base64Image || w.imageUrl || '');
-            
-            if (wId && existingIds.has(wId)) return false;
-            if (wTitle && existingTitles.has(wTitle)) return false;
-            if (wImg.length > 30 && existingImgs.has(wImg.slice(0, 120))) return false;
-            return true;
-          })
+          .filter(w => !existingIds.has(w.id))
           .map((w, idx) => ({
             id: w.id,
             title: w.title,
