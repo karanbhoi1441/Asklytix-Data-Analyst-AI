@@ -122,13 +122,6 @@ def login(req: UserLoginRequest, response: Response, db: Session = Depends(get_d
                 detail="Invalid email or password. Please try Demo Login or check your credentials."
             )
 
-    # ZERO-PERSISTENCE: Clear any stale leftover files from previous session
-    try:
-        from app.services.storage_manager import StorageManager
-        StorageManager.purge_user_storage(user.id, db)
-    except Exception:
-        pass
-
     set_auth_cookies(response, user.id)
 
     return {

@@ -34,10 +34,33 @@ function saveActiveId(id: string | null) {
   }
 }
 
+const CACHED_DATASETS_KEY = 'asklytix_cached_datasets';
+const CACHED_ACTIVE_KEY = 'asklytix_cached_active_dataset';
+
+function loadCachedDatasets(): Dataset[] {
+  try {
+    const val = localStorage.getItem(CACHED_DATASETS_KEY);
+    if (!val) return [];
+    return JSON.parse(val);
+  } catch {
+    return [];
+  }
+}
+
+function loadCachedActiveDataset(): Dataset | null {
+  try {
+    const val = localStorage.getItem(CACHED_ACTIVE_KEY);
+    if (!val) return null;
+    return JSON.parse(val);
+  } catch {
+    return null;
+  }
+}
+
 export function useDatasets() {
-  const [datasets, setDatasets] = useState<Dataset[]>([]);
+  const [datasets, setDatasets] = useState<Dataset[]>(loadCachedDatasets);
   const [activeId, setActiveId] = useState<string | null>(loadActiveId);
-  const [activeDatasetDetails, setActiveDatasetDetails] = useState<Dataset | null>(null);
+  const [activeDatasetDetails, setActiveDatasetDetails] = useState<Dataset | null>(loadCachedActiveDataset);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [uploadQueue, setUploadQueue] = useState<UploadQueueItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -51,41 +74,43 @@ export function useDatasets() {
     try {
       setIsLoading(true);
       const list = await datasetService.list();
-      setDatasets(list);
 
-      if (!list || list.length === 0) {
-        setActiveDatasetDetails(null);
-        setActiveId(null);
-        saveActiveId(null);
-        return;
-      }
-
-      // If we have an activeId explicitly in storage matching one in the list, load it
-      const currentStoredId = loadActiveId();
-      const matched = currentStoredId ? list.find(d => d.id === currentStoredId) : null;
-
-      if (matched && matched.id) {
+      if (list && list.length > 0) {
+        setDatasets(list);
         try {
-          const details = await datasetService.getById(matched.id);
-          setActiveDatasetDetails(details);
-          setActiveId(matched.id);
-          saveActiveId(matched.id);
-        } catch {
-          setActiveDatasetDetails(null);
-          setActiveId(null);
-          saveActiveId(null);
+          localStorage.setItem(CACHED_DATASETS_KEY, JSON.stringify(list));
+        } catch {}
+
+        const currentStoredId = loadActiveId();
+        const matched = currentStoredId ? list.find(d => d.id === currentStoredId) : null;
+        const target = matched || list[0];
+
+        if (target && target.id) {
+          setActiveId(target.id);
+          saveActiveId(target.id);
+          try {
+            const details = await datasetService.getById(target.id);
+            setActiveDatasetDetails(details);
+            try {
+              localStorage.setItem(CACHED_ACTIVE_KEY, JSON.stringify(details));
+            } catch {}
+          } catch {
+            setActiveDatasetDetails(target);
+          }
         }
-      } else {
+      } else if (list && list.length === 0) {
+        // Only reset if list is explicitly empty from backend and we have no valid pending upload
+        setDatasets([]);
         setActiveDatasetDetails(null);
         setActiveId(null);
         saveActiveId(null);
+        try {
+          localStorage.removeItem(CACHED_DATASETS_KEY);
+          localStorage.removeItem(CACHED_ACTIVE_KEY);
+        } catch {}
       }
     } catch {
-      // Backend unauthenticated or empty
-      setDatasets([]);
-      setActiveDatasetDetails(null);
-      setActiveId(null);
-      saveActiveId(null);
+      // Backend unauthenticated or network hiccup - DO NOT wipe local state!
     } finally {
       setIsLoading(false);
     }
@@ -211,29 +236,52 @@ export function useDatasets() {
   const setActiveDataset = useCallback((id: string) => {
     setActiveId(id);
     saveActiveId(id);
+    const found = datasets.find(d => d.id === id);
+    if (found) {
+      setActiveDatasetDetails(found);
+      try {
+        localStorage.setItem(CACHED_ACTIVE_KEY, JSON.stringify(found));
+      } catch {}
+    }
     datasetService.getById(id).then(details => {
       setActiveDatasetDetails(details);
+      try {
+        localStorage.setItem(CACHED_ACTIVE_KEY, JSON.stringify(details));
+      } catch {}
     }).catch(() => {});
-  }, []);
+  }, [datasets]);
 
   const deleteDataset = useCallback(async (id: string) => {
     try {
       await datasetService.delete(id);
-      setDatasets(prev => prev.filter(d => d.id !== id));
-      if (activeId === id) {
-        setActiveId(null);
-        saveActiveId(null);
-        setActiveDatasetDetails(null);
-      }
-    } catch {
-      setDatasets(prev => prev.filter(d => d.id !== id));
+    } catch {}
+    setDatasets(prev => {
+      const updated = prev.filter(d => d.id !== id);
+      try {
+        localStorage.setItem(CACHED_DATASETS_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+    if (activeId === id) {
+      setActiveId(null);
+      saveActiveId(null);
+      setActiveDatasetDetails(null);
+      try {
+        localStorage.removeItem(CACHED_ACTIVE_KEY);
+      } catch {}
     }
   }, [activeId]);
 
   const renameDataset = useCallback((id: string, newName: string): string | null => {
     const duplicate = datasets.some(d => d.id !== id && d.name.toLowerCase() === newName.toLowerCase());
     if (duplicate) return 'A dataset with this name already exists.';
-    setDatasets(prev => prev.map(d => d.id === id ? { ...d, name: newName } : d));
+    setDatasets(prev => {
+      const updated = prev.map(d => d.id === id ? { ...d, name: newName } : d);
+      try {
+        localStorage.setItem(CACHED_DATASETS_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
     return null;
   }, [datasets]);
 
@@ -247,7 +295,13 @@ export function useDatasets() {
       isActive: false,
       uploadedAt: new Date().toISOString(),
     };
-    setDatasets(prev => [clone, ...prev]);
+    setDatasets(prev => {
+      const updated = [clone, ...prev];
+      try {
+        localStorage.setItem(CACHED_DATASETS_KEY, JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
   }, [datasets]);
 
   const getDatasetById = useCallback((id: string) => {
@@ -266,8 +320,11 @@ export function useDatasets() {
     setDatasets([]);
     try {
       localStorage.removeItem(ACTIVE_ID_KEY);
+      localStorage.removeItem(CACHED_DATASETS_KEY);
+      localStorage.removeItem(CACHED_ACTIVE_KEY);
       localStorage.removeItem('asklytix_dashboard_widgets');
       localStorage.removeItem('asklytix_dashboard_active_region');
+      sessionStorage.clear();
     } catch {}
   }, []);
 

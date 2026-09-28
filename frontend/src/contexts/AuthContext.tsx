@@ -52,11 +52,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = useCallback(async (credentials: LoginCredentials): Promise<User> => {
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
     try {
-      try {
-        localStorage.removeItem('asklytix_active_dataset_id');
-        localStorage.removeItem('asklytix_dashboard_widgets');
-        localStorage.removeItem('asklytix_dashboard_active_region');
-      } catch {}
       const user = await authService.login(credentials);
       setState({
         user,

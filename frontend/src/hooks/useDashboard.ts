@@ -140,14 +140,7 @@ export function useDashboard() {
         }
       })
       .catch(() => {
-        setActiveDatasetId(null);
-        setActiveDatasetName(null);
-        setActiveDatasetColumns([]);
-        setActiveDatasetRowCount(0);
-        setBackendMetrics(null);
-        try {
-          localStorage.removeItem('asklytix_active_dataset_id');
-        } catch {}
+        // Retain stored dataset identity during navigation
       });
 
     // Also fetch preview for columns guarantee

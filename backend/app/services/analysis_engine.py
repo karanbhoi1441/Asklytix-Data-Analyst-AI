@@ -48,11 +48,15 @@ class AnalysisEngine:
                         f"mean={s.mean():.2f}, sum={s.sum():.2f}"
                     )
 
-        # Categorical value counts (top 5 per column)
-        cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
+        # Categorical value counts (top high-level categories only, excluding arbitrary ID or individual name/showroom columns)
+        cat_cols = [
+            c for c in df.select_dtypes(include=["object", "category"]).columns
+            if not any(k in str(c).lower() for k in ["id", "code", "key", "email", "customer", "person", "showroom", "name", "user"])
+            and df[c].nunique() <= 10
+        ]
         if cat_cols:
             lines.append("\n--- TOP CATEGORIES ---")
-            for col in cat_cols[:5]:
+            for col in cat_cols[:3]:
                 top = df[col].value_counts().head(5)
                 vals = ", ".join([f"{v}({c})" for v, c in top.items()])
                 lines.append(f"  {col}: {vals}")
@@ -95,11 +99,11 @@ class AnalysisEngine:
             system_prompt = (
                 "You are AskLytix, a high-precision AI data analyst assistant. "
                 f"The user has an active dataset named '{dataset_name}'. "
-                "Analyze the user's specific question carefully and respond directly to what they are asking. "
+                "Analyze the user's specific question carefully and respond directly with clean, concise summary metrics only. "
                 "CRITICAL RULES:\n"
-                "1. Answer ONLY what the user asked. NEVER produce a generic copy-pasted dataset summary if they asked a specific question.\n"
-                "2. If they ask for specific columns (e.g. 'only city name', 'car models'), list the unique values with their exact counts.\n"
-                "3. If they ask for an average, total, min, max, or ranking, compute the exact answer based on the data.\n"
+                "1. Answer ONLY what the user asked with concise KPIs (e.g. Total Transactions, Total Revenue, Units Sold).\n"
+                "2. NEVER output redundant or extra column breakdowns such as '[Column] Breakdown: ...', 'Sale Id Breakdown', 'Showroom Name Breakdown', or 'Customer Name Breakdown'. The table below already shows the records.\n"
+                "3. Do not list individual customer names, IDs, or repetitive breakdowns unless the user explicitly requested a breakdown of that exact column.\n"
                 "4. Format currency values with ₹ or $ as appropriate with proper commas.\n"
                 "5. Provide a valid DuckDB SQL query in a markdown code block if applicable.\n\n"
                 f"=== DATASET CONTEXT ===\n{dataset_context}"
@@ -115,13 +119,21 @@ class AnalysisEngine:
                 temperature=0.2,
             )
 
-            answer = response.choices[0].message.content
-            if not answer:
+            raw_answer = response.choices[0].message.content
+            if not raw_answer:
                 return None
+            
+            # Remove any unwanted extra breakdown lines from the answer
+            import re
+            cleaned_lines = []
+            for line in raw_answer.strip().splitlines():
+                if re.search(r'^\s*[\*\-•]?\s*.*?\bbreakdown\s*:', line, re.IGNORECASE):
+                    continue
+                cleaned_lines.append(line)
+            answer = "\n".join(cleaned_lines).strip()
             
             # Extract optional SQL from GPT response
             sql_match = None
-            import re
             m = re.search(r'```sql\s*(.*?)\s*```', answer, re.DOTALL | re.IGNORECASE)
             if m:
                 sql_match = m.group(1).strip()
@@ -137,10 +149,23 @@ class AnalysisEngine:
     # ──────────────────────────────────────────────────────────────────────────
     #  PUBLIC
     # ──────────────────────────────────────────────────────────────────────────
+    _df_cache: Dict[str, Tuple[float, pd.DataFrame]] = {}
+
     @classmethod
     def get_dataframe(cls, file_path: str) -> pd.DataFrame:
-        parser = ParserFactory.get_parser(file_path)
-        return parser.parse_to_dataframe(file_path)
+        try:
+            mtime = os.path.getmtime(file_path)
+            if file_path in cls._df_cache:
+                cached_mtime, cached_df = cls._df_cache[file_path]
+                if cached_mtime == mtime:
+                    return cached_df
+            parser = ParserFactory.get_parser(file_path)
+            df = parser.parse_to_dataframe(file_path)
+            cls._df_cache[file_path] = (mtime, df)
+            return df
+        except Exception:
+            parser = ParserFactory.get_parser(file_path)
+            return parser.parse_to_dataframe(file_path)
 
     @classmethod
     def query_preview(

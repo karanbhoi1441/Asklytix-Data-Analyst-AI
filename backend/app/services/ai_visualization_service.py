@@ -114,8 +114,18 @@ class AIVisualizationService:
         if pd.api.types.is_numeric_dtype(series):
             return True
         norm_c = cls._normalize(col_name)
+        # Exclude text entity/person names like salesperson, employee, customer from being classified as numeric
+        if any(p in norm_c for p in ["person", "salesperson", "rep", "agent", "employee", "customer", "driver", "client", "student", "patient", "name"]):
+            return False
         if any(norm_c == cls._normalize(k) or cls._normalize(k) in norm_c for k in ["salary", "revenue", "sales", "price", "amount", "profit", "age", "quantity", "cost", "total", "score", "wage", "income", "package", "ctc"]):
-            return True
+            try:
+                cleaned = series.dropna().astype(str).str.replace(r'[\$,₹, ]', '', regex=True)
+                if cleaned.empty:
+                    return False
+                converted = pd.to_numeric(cleaned, errors='coerce')
+                return (converted.notna().sum() / max(1, len(cleaned))) >= 0.5
+            except Exception:
+                return False
         try:
             cleaned = series.dropna().astype(str).str.replace(r'[\$,₹, ]', '', regex=True)
             if cleaned.empty:
@@ -324,10 +334,11 @@ class AIVisualizationService:
             if col in cat_cols or col in meaningful_cats:
                 col_l = col.lower()
                 norm_col = cls._normalize(col)
+                col_space = col_l.replace('_', ' ')
                 if any(tok == col_l or cls._normalize(tok) == norm_col for tok in clean_tokens):
                     matched_cat = col
                     break
-                if re.search(r'\b' + re.escape(col_l) + r'\b', lower_p):
+                if re.search(r'\b' + re.escape(col_l) + r'\b', lower_p) or re.search(r'\b' + re.escape(col_space) + r'\b', lower_p):
                     matched_cat = col
                     break
 
@@ -347,10 +358,11 @@ class AIVisualizationService:
         for col in num_cols:
             col_l = col.lower()
             norm_col = cls._normalize(col)
+            col_space = col_l.replace('_', ' ')
             if any(tok == col_l or cls._normalize(tok) == norm_col for tok in clean_tokens):
                 matched_num = col
                 break
-            if re.search(r'\b' + re.escape(col_l) + r'\b', lower_p):
+            if re.search(r'\b' + re.escape(col_l) + r'\b', lower_p) or re.search(r'\b' + re.escape(col_space) + r'\b', lower_p):
                 matched_num = col
                 break
 
@@ -936,8 +948,15 @@ plt.close('all')
         # ─────────────────────────────────────────────────────────────────────────
         is_heatmap = any(k in lower_p for k in ["heatmap", "heat map", "cross tab", "crosstab", "intensity matrix"])
         if is_heatmap and len(meaningful_cats) >= 2:
-            cat1 = meaningful_cats[0]
-            cat2 = meaningful_cats[1]
+            matched_cats = [c for c in meaningful_cats if c.lower() in lower_p or c.lower().replace('_', ' ') in lower_p]
+            if len(matched_cats) >= 2:
+                cat1, cat2 = matched_cats[0], matched_cats[1]
+            elif len(matched_cats) == 1:
+                cat1 = matched_cats[0]
+                cat2 = next((c for c in meaningful_cats if c != cat1), meaningful_cats[1] if len(meaningful_cats) > 1 else cat1)
+            else:
+                cat1 = meaningful_cats[0]
+                cat2 = meaningful_cats[1]
             title = f"{cat1.replace('_', ' ').title()} vs {cat2.replace('_', ' ').title()} Heatmap"
             explanation = f"Generated 2D intensity heatmap cross-tabulating {cat1} and {cat2}."
             
@@ -1253,8 +1272,15 @@ plt.close('all')
         # ─────────────────────────────────────────────────────────────────────────
         is_stacked = any(k in lower_p for k in ["stacked bar", "stacked chart", "stacked", "composition across", "segmented bar"])
         if is_stacked and len(meaningful_cats) >= 2:
-            cat1 = meaningful_cats[0]
-            cat2 = meaningful_cats[1]
+            matched_cats = [c for c in meaningful_cats if c.lower() in lower_p or c.lower().replace('_', ' ') in lower_p]
+            if len(matched_cats) >= 2:
+                cat1, cat2 = matched_cats[0], matched_cats[1]
+            elif len(matched_cats) == 1:
+                cat1 = matched_cats[0]
+                cat2 = next((c for c in meaningful_cats if c != cat1), meaningful_cats[1] if len(meaningful_cats) > 1 else cat1)
+            else:
+                cat1 = meaningful_cats[0]
+                cat2 = meaningful_cats[1]
             title = f"{cat1.replace('_', ' ').title()} Stacked by {cat2.replace('_', ' ').title()}"
             explanation = f"Generated stacked bar chart analyzing subcategory composition of {cat2} within {cat1}."
             
@@ -1312,8 +1338,15 @@ plt.close('all')
         # ─────────────────────────────────────────────────────────────────────────
         is_grouped = any(k in lower_p for k in ["grouped bar", "grouped chart", "grouped by", "grouped", "side by side", "clustered bar", "group bar"])
         if is_grouped and len(meaningful_cats) >= 2:
-            cat1 = meaningful_cats[0]
-            cat2 = meaningful_cats[1]
+            matched_cats = [c for c in meaningful_cats if c.lower() in lower_p or c.lower().replace('_', ' ') in lower_p]
+            if len(matched_cats) >= 2:
+                cat1, cat2 = matched_cats[0], matched_cats[1]
+            elif len(matched_cats) == 1:
+                cat1 = matched_cats[0]
+                cat2 = next((c for c in meaningful_cats if c != cat1), meaningful_cats[1] if len(meaningful_cats) > 1 else cat1)
+            else:
+                cat1 = meaningful_cats[0]
+                cat2 = meaningful_cats[1]
             title = f"{cat1.replace('_', ' ').title()} Grouped by {cat2.replace('_', ' ').title()}"
             explanation = f"Generated grouped bar chart comparing {cat2} side-by-side across {cat1}."
             
@@ -1438,6 +1471,8 @@ plt.close('all')
         ]) or ("percentage" in lower_p and any(k in lower_p for k in [" by ", " across ", "department", "category", "each", "group"]))
 
         if is_pie:
+            is_donut = any(k in lower_p for k in ["donut", "donut chart", "doughnut"])
+            pie_type = "donut" if is_donut else "pie"
             is_frequency = any(k in lower_p for k in ["frequency", "count", "number of", "how many", "proportion", "breakdown", "role", "employe", "staff"]) or not matched_num or (matched_num.lower() == target_cat.lower())
 
             if is_frequency:
@@ -1459,8 +1494,9 @@ plt.close('all')
                     for k, v in counts.items()
                 ]
 
-                title = f"{target_cat.replace('_', ' ').title()} Distribution"
-                explanation = f"Generated pie chart showing frequency proportion breakdown of {target_cat}."
+                chart_noun = "Donut Chart" if is_donut else "Distribution"
+                title = f"{target_cat.replace('_', ' ').title()} {chart_noun}"
+                explanation = f"Generated {'donut' if is_donut else 'pie'} chart showing frequency proportion breakdown of {target_cat}."
                 columns_used = [target_cat]
                 aggregation = "count"
                 value_column = None
@@ -1583,7 +1619,7 @@ plt.close('all')
 
             chart_spec = {
                 "id": unique_viz_id,
-                "chart_type": "pie",
+                "chart_type": pie_type,
                 "title": title,
                 "dataset_id": active_ds_id,
                 "category_column": target_cat,
@@ -1597,7 +1633,7 @@ plt.close('all')
             return {
                 "status": "success",
                 "code": code.strip(),
-                "chart_type": "pie",
+                "chart_type": pie_type,
                 "title": title,
                 "columns_used": columns_used,
                 "explanation": explanation,
@@ -1687,14 +1723,20 @@ plt.close('all')
         # ─────────────────────────────────────────────────────────────────────────
         # 16. TIME-SERIES / MONTHLY TREND LINE CHART
         # ─────────────────────────────────────────────────────────────────────────
-        is_trend = any(k in lower_p for k in ["trend", "monthly", "over time", "timeline", "hiring trend", "sales trend", "trajectory", "hiring", "joining trend"])
+        is_trend = any(k in lower_p for k in [
+            "line", "line chart", "line plot", "line graph", "area", "area chart", "area graph",
+            "trend", "monthly", "over time", "timeline", "hiring trend", "sales trend", "trajectory", "hiring", "joining trend"
+        ])
         if is_trend and (date_cols or len(df) > 5):
             d_col = date_cols[0] if date_cols else target_cat
+            is_area = any(k in lower_p for k in ["area", "area chart", "area graph"])
+            line_type = "area" if is_area else "line"
+            chart_noun = "Area Chart" if is_area else "Line Chart"
             is_hiring = "hiring" in lower_p or "joined" in lower_p or "employee" in lower_p or "joining" in lower_p
 
             if is_hiring or not matched_num:
-                title = "Monthly Hiring Trend" if is_hiring else f"{d_col.replace('_', ' ').title()} Trend"
-                explanation = f"Generated monthly trend line chart tracking {title.lower()}."
+                title = f"Monthly Hiring {chart_noun}" if is_hiring else f"{d_col.replace('_', ' ').title()} {chart_noun}"
+                explanation = f"Generated {chart_noun.lower()} tracking {title.lower()}."
                 columns_used = [d_col]
                 aggregation = "count"
                 value_column = None
@@ -1748,7 +1790,7 @@ plt.close('all')
 
                 chart_spec = {
                     "id": unique_viz_id,
-                    "chart_type": "line",
+                    "chart_type": line_type,
                     "title": title,
                     "dataset_id": active_ds_id,
                     "category_column": d_col,
@@ -1762,7 +1804,7 @@ plt.close('all')
                 return {
                     "status": "success",
                     "code": code.strip(),
-                    "chart_type": "line",
+                    "chart_type": line_type,
                     "title": title,
                     "columns_used": columns_used,
                     "explanation": explanation,
@@ -1852,7 +1894,7 @@ plt.close('all')
         # ─────────────────────────────────────────────────────────────────────────
         # 17. TOP N RANKING / HORIZONTAL OR VERTICAL BAR CHART
         # ─────────────────────────────────────────────────────────────────────────
-        is_top_n = any(k in lower_p for k in ["top", "highest", "best", "lowest", "bottom", "ranking", "horizontal", "barh"])
+        is_top_n = any(k in lower_p for k in ["top", "highest", "best", "lowest", "bottom", "ranking", "rank", "leaderboard"]) and not any(k in lower_p for k in ["average", "avg", "mean", "total", "sum", "count of", "number of", "how many"])
         if is_top_n and target_num:
             n_match = re.search(r'\b(\d+)\b', lower_p)
             top_n = int(n_match.group(1)) if n_match else 5
@@ -1861,12 +1903,12 @@ plt.close('all')
 
             # Check whether user explicitly asked for horizontal vs vertical bar
             is_vertical_req = any(k in lower_p for k in ["vertical", "column", "vbar", "vertical bar", "column chart", "column bar"])
-            is_horizontal_req = any(k in lower_p for k in ["horizontal", "barh", "horizontal bar"])
-            render_horizontal = is_horizontal_req and not is_vertical_req
+            is_horizontal_req = any(k in lower_p for k in ["horizontal", "horizont", "barh", "horizontal bar"])
+            render_horizontal = is_horizontal_req or (not is_vertical_req)
 
-            name_cat = next((c for c in meaningful_cats if any(k in c.lower() for k in ["name", "employee", "customer", "person", "model", "item"])), target_cat)
+            name_cat = target_cat if (matched_cat or not meaningful_cats) else next((c for c in meaningful_cats if any(k in c.lower() for k in ["name", "employee", "customer", "person", "model", "item"])), target_cat)
             prefix = "Bottom" if is_bottom else "Top"
-            title = f"{prefix} {top_n} Employees by {target_num.replace('_', ' ').title()}" if ("employee" in lower_p or "name" in name_cat.lower()) else f"{prefix} {top_n} {target_num.replace('_', ' ').title()} by {name_cat.replace('_', ' ').title()}"
+            title = f"{prefix} {top_n} Employees by {target_num.replace('_', ' ').title()}" if ("employee" in lower_p or "employee" in name_cat.lower()) else f"{prefix} {top_n} {target_num.replace('_', ' ').title()} by {name_cat.replace('_', ' ').title()}"
             bar_style_name = "horizontal" if render_horizontal else "vertical"
             explanation = f"Generated {bar_style_name} bar chart ranking {prefix.lower()} {top_n} records by {target_num}."
 
@@ -1978,15 +2020,22 @@ plt.close('all')
         # ─────────────────────────────────────────────────────────────────────────
         # 18. SCATTER PLOT / BUBBLE
         # ─────────────────────────────────────────────────────────────────────────
-        is_scatter = any(k in lower_p for k in ["scatter", "correlation", "relationship", "vs", "versus", "against"])
+        is_scatter = any(k in lower_p for k in ["scatter", "scatter plot", "scatterplot", "bubble", "correlation", "relationship", "vs", "versus", "against"])
         if is_scatter and len(num_cols) >= 2:
-            x_col = num_cols[0]
-            y_col = num_cols[1]
-            if matched_num:
-                y_col = matched_num
-                x_col = next((c for c in num_cols if c != y_col), num_cols[0])
+            matched_nums = [c for c in num_cols if c.lower() in lower_p or c.lower().replace('_', ' ') in lower_p]
+            if len(matched_nums) >= 2:
+                y_col, x_col = matched_nums[0], matched_nums[1]
+            elif len(matched_nums) == 1:
+                y_col = matched_nums[0]
+                x_col = next((c for c in num_cols if c != y_col), num_cols[0] if num_cols[0] != y_col else (num_cols[1] if len(num_cols) > 1 else y_col))
+            else:
+                x_col = num_cols[0]
+                y_col = num_cols[1]
+                if matched_num:
+                    y_col = matched_num
+                    x_col = next((c for c in num_cols if c != y_col), num_cols[0])
 
-            title = f"{y_col.replace('_', ' ').title()} vs {x_col.replace('_', ' ').title()}"
+            title = f"{y_col.replace('_', ' ').title()} vs {x_col.replace('_', ' ').title()} Scatter Plot"
             explanation = f"Generated scatter plot analyzing relationship between {x_col} and {y_col}."
 
             df_calc = df.copy()
@@ -2058,6 +2107,8 @@ plt.close('all')
         # ─────────────────────────────────────────────────────────────────────────
         # 19 & 20. BAR CHART (VERTICAL BAR & GROUPED/AVERAGE COMPARISONS)
         # ─────────────────────────────────────────────────────────────────────────
+        is_horizontal = any(k in lower_p for k in ["horizontal", "horizont", "barh", "horizontal bar", "horizontal chart", "horizontal bars"]) and not any(k in lower_p for k in ["vertical", "column", "vbar", "vertical bar"])
+        bar_chart_type = "horizontal_bar" if is_horizontal else "bar"
         is_avg = any(k in lower_p for k in ["average", "avg", "mean", "compare", "across", "for each", "-wise", "wise"]) or (matched_num and matched_cat and not any(k in lower_p for k in ["count", "number of", "frequency", "total", "sum"]))
         is_sum = any(k in lower_p for k in ["total", "sum", "budget", "cumulative"])
         is_count_by = any(k in lower_p for k in ["count", "employee count", "number of", "how many", "frequency"]) or (not matched_num and not is_avg and not is_sum)
@@ -2067,7 +2118,8 @@ plt.close('all')
             agg_label = "Total" if is_sum else "Average"
             
             title = f"{agg_label} {target_num.replace('_', ' ').title()} by {target_cat.replace('_', ' ').title()}"
-            explanation = f"Generated bar chart comparing {agg_label.lower()} {target_num} across {target_cat}."
+            bar_desc = "horizontal bar chart" if is_horizontal else "bar chart"
+            explanation = f"Generated {bar_desc} comparing {agg_label.lower()} {target_num} across {target_cat}."
             aggregation = agg_type
             value_column = target_num
             columns_used = [target_cat, target_num]
@@ -2075,13 +2127,19 @@ plt.close('all')
             df_calc = df.copy()
             df_calc[target_num] = pd.to_numeric(df_calc[target_num].astype(str).str.replace(r'[\$,₹, ]', '', regex=True), errors='coerce')
             clean_df = df_calc.dropna(subset=[target_cat, target_num])
-            agg_res = clean_df.groupby(target_cat)[target_num].agg(agg_type).sort_values(ascending=False).head(8)
+            
+            if is_horizontal:
+                agg_res = clean_df.groupby(target_cat)[target_num].agg(agg_type).sort_values(ascending=True).tail(8)
+            else:
+                agg_res = clean_df.groupby(target_cat)[target_num].agg(agg_type).sort_values(ascending=False).head(8)
+                
             counts_res = clean_df.groupby(target_cat).size()
             total_sum = agg_res.sum() if agg_res.sum() > 0 else 1
             is_curr = any(c in target_num.lower() for c in ["salary", "revenue", "price", "amount", "cost", "budget", "total"])
 
             spec_data = []
-            for k, v in agg_res.items():
+            display_order = agg_res.sort_values(ascending=False) if is_horizontal else agg_res
+            for k, v in display_order.items():
                 v_num = round(float(v), 2)
                 cnt = int(counts_res.get(k, 0))
                 share_pct = round((v_num / total_sum) * 100, 1)
@@ -2100,7 +2158,37 @@ plt.close('all')
                     f"{agg_type}_{target_num.lower()}": v_num
                 })
 
-            code = f"""# Calculate {agg_label.lower()} {target_num} by {target_cat}
+            if is_horizontal:
+                code = f"""# Calculate {agg_label.lower()} {target_num} by {target_cat} horizontally
+df['{target_num}'] = pd.to_numeric(df['{target_num}'].astype(str).str.replace(r'[\\$,₹, ]', '', regex=True), errors='coerce')
+agg_res = df.dropna(subset=['{target_cat}', '{target_num}']).groupby('{target_cat}')['{target_num}'].{agg_type}().sort_values(ascending=True).tail(8)
+
+fig, ax = plt.subplots(figsize=(9.5, 5.5), dpi=160)
+colors = ['#6366f1', '#818cf8', '#06b6d4', '#22d3ee', '#38bdf8', '#60a5fa', '#a78bfa', '#c084fc'][:len(agg_res)]
+
+bars = ax.barh(agg_res.index.astype(str), agg_res.values, color=colors, edgecolor='#06b6d4', linewidth=1.2, height=0.55, zorder=3)
+
+for bar in bars:
+    w = bar.get_width()
+    label = f'₹{{w/1e6:.1f}}M' if w >= 1e6 else f'₹{{w:,.0f}}' if w > 1000 else f'{{w:,.1f}}'
+    ax.annotate(label,
+                xy=(w, bar.get_y() + bar.get_height() / 2),
+                xytext=(6, 0),
+                textcoords="offset points",
+                ha='left', va='center',
+                fontsize=9.5, fontweight='bold', color='#38bdf8')
+
+ax.set_title("{title}", fontsize=13, fontweight='bold', pad=15, color='#ffffff')
+ax.set_xlabel("{agg_label} {target_num.replace('_', ' ').title()}", fontsize=11, fontweight='bold', labelpad=10, color='#94a3b8')
+ax.set_ylabel("{target_cat.replace('_', ' ').title()}", fontsize=11, fontweight='bold', labelpad=10, color='#94a3b8')
+ax.grid(axis='x', linestyle='--', alpha=0.3, zorder=0)
+
+plt.tight_layout()
+plt.savefig(output_path, dpi=160, bbox_inches='tight', facecolor='#0a0e1a', edgecolor='none')
+plt.close('all')
+"""
+            else:
+                code = f"""# Calculate {agg_label.lower()} {target_num} by {target_cat}
 df['{target_num}'] = pd.to_numeric(df['{target_num}'].astype(str).str.replace(r'[\\$,₹, ]', '', regex=True), errors='coerce')
 agg_res = df.dropna(subset=['{target_cat}', '{target_num}']).groupby('{target_cat}')['{target_num}'].{agg_type}().sort_values(ascending=False).head(8)
 
@@ -2132,7 +2220,8 @@ plt.close('all')
 
         elif is_count_by:
             title = f"Employee Count by {target_cat.replace('_', ' ').title()}" if "employee" in lower_p else f"{target_cat.replace('_', ' ').title()} Record Count"
-            explanation = f"Generated bar chart displaying record count breakdown across {target_cat}."
+            bar_desc = "horizontal bar chart" if is_horizontal else "bar chart"
+            explanation = f"Generated {bar_desc} displaying record count breakdown across {target_cat}."
             aggregation = "count"
             value_column = None
             columns_used = [target_cat]
@@ -2146,7 +2235,10 @@ plt.close('all')
                 "It": "IT"
             })
             clean_series = clean_series.apply(lambda x: x.upper() if len(x) <= 3 else x.title())
-            counts = clean_series.value_counts().head(8)
+            if is_horizontal:
+                counts = clean_series.value_counts().sort_values(ascending=True).tail(8)
+            else:
+                counts = clean_series.value_counts().head(8)
             total_cnt = counts.sum() if counts.sum() > 0 else 1
             
             spec_data = [
@@ -2161,10 +2253,41 @@ plt.close('all')
                     "category_label": target_cat.replace('_', ' ').title(),
                     "metric_name": "Count"
                 }
-                for k, v in counts.items()
+                for k, v in (counts.sort_values(ascending=False) if is_horizontal else counts).items()
             ]
 
-            code = f"""# Real count aggregation by category
+            if is_horizontal:
+                code = f"""# Real count aggregation by category horizontally
+clean_series = df['{target_cat}'].dropna().astype(str).str.strip()
+clean_series = clean_series.replace({{"human resource": "HR", "Human Resource": "HR", "hr": "HR", "it": "IT", "It": "IT"}})
+clean_series = clean_series.apply(lambda x: x.upper() if len(x) <= 3 else x.title())
+counts = clean_series.value_counts().sort_values(ascending=True).tail(8)
+
+fig, ax = plt.subplots(figsize=(9.5, 5.5), dpi=160)
+colors = ['#6366f1', '#818cf8', '#06b6d4', '#38bdf8', '#10b981', '#f59e0b', '#ec4899', '#3b82f6'][:len(counts)]
+
+bars = ax.barh(counts.index.astype(str), counts.values, color=colors, edgecolor='#818cf8', linewidth=1.2, height=0.55, zorder=3)
+
+for bar in bars:
+    w = bar.get_width()
+    ax.annotate(f'{{int(w)}}',
+                xy=(w, bar.get_y() + bar.get_height() / 2),
+                xytext=(6, 0),
+                textcoords="offset points",
+                ha='left', va='center',
+                fontsize=9.5, fontweight='bold', color='#38bdf8')
+
+ax.set_title("{title}", fontsize=13, fontweight='bold', pad=15, color='#ffffff')
+ax.set_xlabel("Employee Count" if "employee" in "{lower_p}" else "Record Count", fontsize=11, fontweight='bold', labelpad=10, color='#94a3b8')
+ax.set_ylabel("{target_cat.replace('_', ' ').title()}", fontsize=11, fontweight='bold', labelpad=10, color='#94a3b8')
+ax.grid(axis='x', linestyle='--', alpha=0.3, zorder=0)
+
+plt.tight_layout()
+plt.savefig(output_path, dpi=160, bbox_inches='tight', facecolor='#0a0e1a', edgecolor='none')
+plt.close('all')
+"""
+            else:
+                code = f"""# Real count aggregation by category
 clean_series = df['{target_cat}'].dropna().astype(str).str.strip()
 clean_series = clean_series.replace({{"human resource": "HR", "Human Resource": "HR", "hr": "HR", "it": "IT", "It": "IT"}})
 clean_series = clean_series.apply(lambda x: x.upper() if len(x) <= 3 else x.title())
@@ -2196,7 +2319,8 @@ plt.close('all')
 """
         else:
             title = f"Total {target_num.replace('_', ' ').title()} by {target_cat.replace('_', ' ').title()}"
-            explanation = f"Generated bar chart showing total {target_num} by {target_cat}."
+            bar_desc = "horizontal bar chart" if is_horizontal else "bar chart"
+            explanation = f"Generated {bar_desc} showing total {target_num} by {target_cat}."
             aggregation = "sum"
             value_column = target_num
             columns_used = [target_cat, target_num]
@@ -2204,7 +2328,10 @@ plt.close('all')
             df_calc = df.copy()
             df_calc[target_num] = pd.to_numeric(df_calc[target_num].astype(str).str.replace(r'[\$,₹, ]', '', regex=True), errors='coerce')
             clean_df = df_calc.dropna(subset=[target_cat, target_num])
-            agg_res = clean_df.groupby(target_cat)[target_num].sum().sort_values(ascending=False).head(8)
+            if is_horizontal:
+                agg_res = clean_df.groupby(target_cat)[target_num].sum().sort_values(ascending=True).tail(8)
+            else:
+                agg_res = clean_df.groupby(target_cat)[target_num].sum().sort_values(ascending=False).head(8)
             counts_res = clean_df.groupby(target_cat).size()
             total_sum = agg_res.sum() if agg_res.sum() > 0 else 1
             is_curr = any(c in target_num.lower() for c in ["salary", "revenue", "price", "amount", "cost", "budget", "total"])
@@ -2222,10 +2349,39 @@ plt.close('all')
                     "metric_name": f"Total {target_num.replace('_', ' ').title()}",
                     "total_" + target_num.lower(): round(float(v), 2)
                 }
-                for k, v in agg_res.items()
+                for k, v in (agg_res.sort_values(ascending=False) if is_horizontal else agg_res).items()
             ]
 
-            code = f"""# Real sum aggregation by category
+            if is_horizontal:
+                code = f"""# Real sum aggregation by category horizontally
+agg_res = df.dropna(subset=['{target_cat}', '{target_num}']).groupby('{target_cat}')['{target_num}'].sum().sort_values(ascending=True).tail(8)
+
+fig, ax = plt.subplots(figsize=(9.5, 5.5), dpi=160)
+colors = ['#06b6d4', '#22d3ee', '#38bdf8', '#60a5fa', '#818cf8', '#a78bfa', '#c084fc'][:len(agg_res)]
+
+bars = ax.barh(agg_res.index.astype(str), agg_res.values, color=colors, edgecolor='#06b6d4', linewidth=1.2, height=0.55, zorder=3)
+
+for bar in bars:
+    w = bar.get_width()
+    label = f'₹{{w/1e6:.1f}}M' if w >= 1e6 else f'₹{{w:,.0f}}' if w > 1000 else f'{{w:,.1f}}'
+    ax.annotate(label,
+                xy=(w, bar.get_y() + bar.get_height() / 2),
+                xytext=(6, 0),
+                textcoords="offset points",
+                ha='left', va='center',
+                fontsize=9.5, fontweight='bold', color='#38bdf8')
+
+ax.set_title("{title}", fontsize=13, fontweight='bold', pad=15, color='#ffffff')
+ax.set_xlabel("Total {target_num.replace('_', ' ').title()}", fontsize=11, fontweight='bold', labelpad=10, color='#94a3b8')
+ax.set_ylabel("{target_cat.replace('_', ' ').title()}", fontsize=11, fontweight='bold', labelpad=10, color='#94a3b8')
+ax.grid(axis='x', linestyle='--', alpha=0.3, zorder=0)
+
+plt.tight_layout()
+plt.savefig(output_path, dpi=160, bbox_inches='tight', facecolor='#0a0e1a', edgecolor='none')
+plt.close('all')
+"""
+            else:
+                code = f"""# Real sum aggregation by category
 agg_res = df.dropna(subset=['{target_cat}', '{target_num}']).groupby('{target_cat}')['{target_num}'].sum().sort_values(ascending=False).head(8)
 
 fig, ax = plt.subplots(figsize=(9.5, 5.5), dpi=160)
@@ -2256,7 +2412,7 @@ plt.close('all')
 
         chart_spec = {
             "id": unique_viz_id,
-            "chart_type": "bar",
+            "chart_type": bar_chart_type,
             "title": title,
             "dataset_id": active_ds_id,
             "category_column": target_cat,
@@ -2270,7 +2426,7 @@ plt.close('all')
         return {
             "status": "success",
             "code": code.strip(),
-            "chart_type": "bar",
+            "chart_type": bar_chart_type,
             "title": title,
             "columns_used": columns_used,
             "explanation": explanation,

@@ -23,13 +23,7 @@ export const ConnectDataSourcePage: React.FC = () => {
   const { user, logout } = useAuth();
   const { setActiveDataset, activeDataset, deleteDataset, clearAllDatasets } = useDatasets();
   const inputRef = useRef<HTMLInputElement>(null);
-
   const [isDragOver, setIsDragOver] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [progressStage, setProgressStage] = useState('Uploading dataset...');
-  const [errorMsg, setErrorMsg] = useState('');
-  const [lockedNotice, setLockedNotice] = useState(false);
 
   // Sync existing active dataset state
   const [uploadedInfo, setUploadedInfo] = useState<{
@@ -38,7 +32,26 @@ export const ConnectDataSourcePage: React.FC = () => {
     size: string;
     rows: number;
     cols: number;
-  } | null>(null);
+  } | null>(() => {
+    if (activeDataset) {
+      return {
+        name: `${activeDataset.name}.${activeDataset.format}`,
+        format: activeDataset.format.toUpperCase(),
+        size: activeDataset.sizeLabel,
+        rows: activeDataset.rows,
+        cols: activeDataset.columns
+      };
+    }
+    return null;
+  });
+
+  const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>(() => {
+    return activeDataset ? 'success' : 'idle';
+  });
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [progressStage, setProgressStage] = useState('Uploading dataset...');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [lockedNotice, setLockedNotice] = useState(false);
 
   useEffect(() => {
     if (activeDataset) {
