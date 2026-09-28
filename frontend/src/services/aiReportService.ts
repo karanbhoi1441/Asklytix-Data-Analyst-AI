@@ -329,49 +329,9 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
     doc.text(valStr.length > 20 ? valStr.slice(0, 18) + '...' : valStr, cx + 3, y + 10.5);
   });
 
-  y += 18;
+  y += 6;
 
-  // 1.2 Quality Metrics Breakdown Row
-  if (reportData.dataQuality) {
-    const dq = reportData.dataQuality;
-    const dqMetrics = [
-      { label: 'Completeness', val: `${dq.completeness ?? 100}%` },
-      { label: 'Uniqueness', val: `${dq.uniqueness ?? 100}%` },
-      { label: 'Consistency', val: `${dq.consistency ?? 100}%` },
-      { label: 'Validity', val: `${dq.validity ?? 100}%` },
-      { label: 'Total Missing', val: `${dq.missingTotal ?? 0} cells` },
-      { label: 'Duplicate Rows', val: `${dq.duplicatesTotal ?? 0} rows` }
-    ];
-
-    const dqCardW = (contentWidth - 10) / dqMetrics.length;
-    dqMetrics.forEach((m, idx) => {
-      const qx = margin + idx * (dqCardW + 2);
-      doc.setFillColor(240, 249, 255);
-      doc.roundedRect(qx, y, dqCardW, 11, 1, 1, 'F');
-      doc.setDrawColor(186, 230, 253);
-      doc.roundedRect(qx, y, dqCardW, 11, 1, 1, 'S');
-
-      doc.setFontSize(6);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(14, 116, 144);
-      doc.text(m.label, qx + 2.5, y + 3.8);
-
-      doc.setFontSize(7.5);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(15, 23, 42);
-      doc.text(m.val, qx + 2.5, y + 8.5);
-    });
-
-    y += 15;
-  }
-
-  // 1.3 Dataset Schema Table (Header: Attribute, Data Type, Missing Values, Unique Count)
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(51, 65, 85);
-  doc.text('Dataset Schema & Attribute Definitions:', margin, y);
-  y += 4;
-
+  // Prepare schema metadata for analytical synthesis (no raw table rendered in PDF)
   const rawCols = reportData.columns || (reportData.schema?.map(s => s.name)) || ['Attribute'];
   const totalRecords = Math.max(reportData.rowCount, 1);
 
@@ -404,52 +364,50 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
         };
       });
 
-  // Table Header (Replacing 'Column Name' with 'Attribute')
-  doc.setFillColor(15, 23, 42);
-  doc.rect(margin, y, contentWidth, 5.5, 'F');
+  // 1.2 Clean Executive Summary Card (Replaces raw schema table and quality boxes)
+  const numericList = schemaList.filter(s => /numeric|float|int|double|number|decimal/i.test(s.type));
+  const categoricalList = schemaList.filter(s => !/numeric|float|int|double|number|decimal/i.test(s.type) && !/id|key/i.test(s.name));
+
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(margin, y, contentWidth, 22, 2, 2, 'F');
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(margin, y, contentWidth, 22, 2, 2, 'S');
+
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(6.8);
-  doc.setTextColor(255, 255, 255);
-  doc.text('Attribute', margin + 3, y + 3.8);
-  doc.text('Data Type', margin + 55, y + 3.8);
-  doc.text('Missing Values', margin + 105, y + 3.8);
-  doc.text('Unique Count', margin + 145, y + 3.8);
+  doc.setFontSize(8);
+  doc.setTextColor(15, 23, 42);
+  doc.text('EXECUTIVE DATASET PROFILE', margin + 4, y + 5.5);
 
-  y += 5.5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.2);
+  doc.setTextColor(71, 85, 105);
 
-  schemaList.slice(0, 12).forEach((col, idx) => {
-    const isEven = idx % 2 === 0;
-    doc.setFillColor(isEven ? 248 : 255, isEven ? 250 : 255, isEven ? 252 : 255);
-    doc.rect(margin, y, contentWidth, 5, 'F');
-    doc.setDrawColor(226, 232, 240);
-    doc.line(margin, y + 5, pageWidth - margin, y + 5);
+  const measureText = numericList.length > 0 
+    ? `Key Measures: ${numericList.map(n => n.name).slice(0, 4).join(', ')}${numericList.length > 4 ? '...' : ''}`
+    : 'Measures: Direct record counts and volume distributions';
+  const dimText = categoricalList.length > 0
+    ? `Primary Dimensions: ${categoricalList.map(c => c.name).slice(0, 4).join(', ')}${categoricalList.length > 4 ? '...' : ''}`
+    : 'Dimensions: Categorical segmentation features';
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.8);
-    doc.setTextColor(15, 23, 42);
-    doc.text(col.name, margin + 3, y + 3.5);
+  doc.text(measureText, margin + 4, y + 11.5);
+  doc.text(dimText, margin + 4, y + 16.5);
 
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(14, 116, 144);
-    const typeLabel = (col.type || 'text').toUpperCase();
-    doc.text(typeLabel, margin + 55, y + 3.5);
+  // Status badge on the right
+  doc.setFillColor(236, 253, 245);
+  doc.roundedRect(pageWidth - margin - 52, y + 4.5, 48, 12, 1.5, 1.5, 'F');
+  doc.setDrawColor(167, 243, 208);
+  doc.roundedRect(pageWidth - margin - 52, y + 4.5, 48, 12, 1.5, 1.5, 'S');
 
-    doc.setFont('helvetica', 'normal');
-    const missCnt = typeof col.missingCount === 'number' ? col.missingCount : 0;
-    const missPct = typeof col.missingPercent === 'number' ? col.missingPercent : 0;
-    doc.setTextColor(missCnt > 0 ? 185 : 22, missCnt > 0 ? 28 : 101, missCnt > 0 ? 28 : 52);
-    doc.text(`${missCnt.toLocaleString()} (${missPct}%)`, margin + 105, y + 3.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  doc.setTextColor(5, 150, 105);
+  doc.text('READY FOR ANALYSIS', pageWidth - margin - 28, y + 9.5, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6);
+  doc.setTextColor(16, 185, 129);
+  doc.text('100% Validated Structure', pageWidth - margin - 28, y + 14, { align: 'center' });
 
-    doc.setTextColor(100, 116, 139);
-    const uniqDisplay = (col.uniqueCount !== undefined && col.uniqueCount !== null && col.uniqueCount !== '—')
-      ? `${typeof col.uniqueCount === 'number' ? col.uniqueCount.toLocaleString() : col.uniqueCount} unique`
-      : `${totalRecords.toLocaleString()} unique`;
-    doc.text(uniqDisplay, margin + 145, y + 3.5);
-
-    y += 5;
-  });
-
-  y += 7;
+  y += 28;
 
   // ════════════════════════════════════════════════════════════════════════
   // ── SECTION 2 — DATA ANALYST AI ANALYSIS ──

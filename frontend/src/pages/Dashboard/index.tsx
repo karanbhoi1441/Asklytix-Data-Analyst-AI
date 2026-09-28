@@ -521,21 +521,21 @@ export const DashboardPage: React.FC = () => {
   }
 
   return (
-    <PageContainer mode="canvas" className="space-y-4 pb-8 max-w-[1850px] mx-auto">
-      {/* ── Top Header Bar (Matching Exact Screenshot) ── */}
-      <header className="flex items-center justify-between gap-4 py-2 border-b border-slate-800/80">
+    <PageContainer mode="canvas" className="space-y-4 pb-8 max-w-[1920px] mx-auto w-full">
+      {/* ── Top Header Bar (Responsive for all device screens) ── */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-2 border-b border-slate-800/80">
         {/* Left: Dataset Name & Row Count */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-white font-mono tracking-tight">
+        <div className="flex items-center gap-2 flex-wrap min-w-0">
+          <span className="text-xs sm:text-sm font-bold text-white font-mono tracking-tight truncate max-w-[220px] sm:max-w-md">
             Dataset: <span className="text-slate-200">{activeDatasetName || 'cleaned_data.csv'}</span>
           </span>
-          <span className="text-xs text-slate-400 font-mono">
+          <span className="text-[11px] sm:text-xs text-slate-400 font-mono shrink-0">
             ({activeDatasetRowCount || 12} rows)
           </span>
         </div>
 
         {/* Right: Generate AI Report (Single Click PDF) & Logout Buttons */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
           <motion.button
             id="btn-generate-ai-pdf-report"
             data-testid="generate-pdf-btn"
@@ -543,17 +543,17 @@ export const DashboardPage: React.FC = () => {
             disabled={isGeneratingReport}
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-bold text-xs shadow-[0_0_16px_rgba(6,182,212,0.35)] transition-all cursor-pointer select-none disabled:opacity-60 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 text-white font-bold text-xs shadow-[0_0_16px_rgba(6,182,212,0.35)] transition-all cursor-pointer select-none disabled:opacity-60 disabled:cursor-not-allowed"
             title="1-Click Generate & Download AI Executive PDF Report"
           >
             {isGeneratingReport ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin text-white" />
                 <span>Generating Report...</span>
               </>
             ) : (
               <>
-                <FileText className="w-4 h-4 text-cyan-200" />
+                <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-cyan-200" />
                 <span>Generate AI Report (PDF)</span>
               </>
             )}
@@ -561,7 +561,7 @@ export const DashboardPage: React.FC = () => {
 
           <button
             onClick={() => logout()}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer select-none shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer select-none shadow-sm"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Logout</span>
@@ -593,14 +593,14 @@ export const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         
         {/* ── LEFT COLUMN: Visualization Canvas (7 Cols) ── */}
-        <div className="lg:col-span-7 space-y-3">
-          <div className="bg-[#0b101f]/95 border border-slate-800/90 hover:border-slate-700/80 rounded-2xl p-5 shadow-2xl backdrop-blur-xl flex flex-col justify-between min-h-[580px] transition-all">
+        <div className="lg:col-span-7 space-y-3 w-full">
+          <div className="bg-[#0b101f]/95 border border-slate-800/90 hover:border-slate-700/80 rounded-2xl p-3 sm:p-5 shadow-2xl backdrop-blur-xl flex flex-col justify-between min-h-[440px] sm:min-h-[520px] lg:min-h-[580px] transition-all">
             
             {/* Canvas Header */}
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 flex-wrap gap-2">
               <div className="flex items-center gap-2 text-white">
                 <BarChart3 className="w-5 h-5 text-cyan-400" />
-                <h2 className="text-base font-bold tracking-tight">
+                <h2 className="text-sm sm:text-base font-bold tracking-tight">
                   Visualization Canvas
                 </h2>
               </div>
@@ -608,7 +608,7 @@ export const DashboardPage: React.FC = () => {
               {/* Visual History Switcher / Actions */}
               <div className="flex items-center gap-2">
                 {widgets.length > 1 && (
-                  <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5">
+                  <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-0.5 overflow-x-auto max-w-[200px] scrollbar-none">
                     {widgets.map((_, wIdx) => (
                       <button
                         key={wIdx}
@@ -638,7 +638,7 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             {/* Canvas Main Visualization Body */}
-            <div className="relative my-4 flex-1 flex flex-col items-center justify-center bg-[#070b16] rounded-xl border border-slate-800/60 p-4 overflow-hidden min-h-[440px]">
+            <div className="relative my-3 sm:my-4 flex-1 flex flex-col items-center justify-center bg-[#070b16] rounded-xl border border-slate-800/60 p-2 sm:p-4 overflow-hidden min-h-[300px] sm:min-h-[380px] lg:min-h-[440px]">
               
               {/* Overlay Interactive Plotly / Sandbox Controls */}
               {currentImageSrc && (
@@ -742,8 +742,8 @@ export const DashboardPage: React.FC = () => {
         </div>
 
         {/* ── RIGHT COLUMN: Data Analyst AI Chat Panel (5 Cols) ── */}
-        <div className="lg:col-span-5 space-y-3">
-          <div className="bg-[#0b101f]/95 border border-slate-800/90 hover:border-slate-700/80 rounded-2xl p-4 shadow-2xl backdrop-blur-xl flex flex-col justify-between h-[580px]">
+        <div className="lg:col-span-5 space-y-3 w-full">
+          <div className="bg-[#0b101f]/95 border border-slate-800/90 hover:border-slate-700/80 rounded-2xl p-3 sm:p-4 shadow-2xl backdrop-blur-xl flex flex-col justify-between h-[500px] sm:h-[540px] lg:h-[580px]">
             
             {/* Chat Panel Header */}
             <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
@@ -976,9 +976,9 @@ export const DashboardPage: React.FC = () => {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Chat Input Bar at Bottom (Matching Exact Screenshot) */}
+            {/* Chat Input Bar at Bottom (Responsive for small & big screens) */}
             <div className="space-y-2 pt-2 border-t border-slate-800/80">
-              <div className="relative flex items-center bg-[#070b16] border border-slate-800 focus-within:border-cyan-500/80 rounded-xl p-1 shadow-inner">
+              <div className="relative flex items-center bg-[#070b16] border border-slate-800 focus-within:border-cyan-500/80 rounded-xl p-1 shadow-inner min-w-0">
                 <input
                   type="text"
                   value={promptInput}
@@ -990,8 +990,8 @@ export const DashboardPage: React.FC = () => {
                     }
                   }}
                   disabled={isGenerating}
-                  placeholder="Ask a question or select a suggested visual above..."
-                  className="flex-1 bg-transparent px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none disabled:opacity-50 font-medium"
+                  placeholder="Ask a question or select a suggested visual..."
+                  className="flex-1 min-w-0 bg-transparent px-2.5 sm:px-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none disabled:opacity-50 font-medium"
                 />
 
                 <button
@@ -1005,13 +1005,13 @@ export const DashboardPage: React.FC = () => {
               </div>
 
               {/* Footer Sub-Bar Underneath Input */}
-              <div className="flex items-center justify-between text-[10px] font-mono text-slate-500 px-1">
-                <span>PowerBI / Tableau level Plotly Visualizations</span>
+              <div className="flex flex-wrap items-center justify-between gap-1 text-[10px] font-mono text-slate-500 px-1">
+                <span className="truncate">PowerBI / Tableau level Plotly Visuals</span>
                 <button
                   onClick={() => setIsSuggestVisualsOpen(true)}
-                  className="text-cyan-400 hover:text-cyan-300 font-semibold cursor-pointer transition-colors"
+                  className="text-cyan-400 hover:text-cyan-300 font-semibold cursor-pointer transition-colors shrink-0"
                 >
-                  ✨ View Visual Suggestions
+                  ✨ Suggestions
                 </button>
               </div>
             </div>

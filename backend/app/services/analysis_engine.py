@@ -245,9 +245,9 @@ class AnalysisEngine:
         cat_cols = [c for c in df.columns if not pd.api.types.is_numeric_dtype(df[c])]
 
         # Identify key domain columns with extensive synonym matching
-        rev_col = next((c for c in df.columns if any(k in c.lower() for k in ["total_amount", "revenue", "sales", "amount", "price_per_car", "price", "close", "value", "total"])), None)
-        if not rev_col and num_cols:
-            rev_col = num_cols[0]
+        rev_col = next((c for c in df.columns if any(k in c.lower() for k in ["total_amount", "revenue", "sales", "turnover", "total_sales", "total_revenue"])), None)
+        if not rev_col:
+            rev_col = next((c for c in df.columns if any(k in c.lower() for k in ["salary", "amount", "price_per_car", "price", "wage", "earning", "compensation"])), None)
         qty_col = next((c for c in df.columns if any(k in c.lower() for k in ["quantity", "qty", "volume", "vol", "units", "count"])), None)
         price_col = next((c for c in df.columns if any(k in c.lower() for k in ["price_per_car", "price", "unit_price", "cost", "rate"])), None)
 
@@ -287,6 +287,7 @@ class AnalysisEngine:
             "payment_method": ["payment", "payment method", "payment mode", "mode of payment", "pay mode", "cash", "upi", "card", "finance"],
             "salesperson": ["salesperson", "sales person", "sales rep", "rep", "executive", "agent", "seller"],
             "salary": ["salary", "salaries", "salaried", "wage", "wages", "pay", "paid", "highest paid", "lowest paid", "earning", "earnings", "income", "compensation", "package", "ctc", "salari"],
+            "gender": ["gender", "sex", "female", "male", "women", "woman", "men", "man", "girl", "boy", "females", "males"],
             "age": ["age", "aged", "years old", "oldest", "youngest", "elderly", "senior", "experience"],
             "employee": ["employee", "employees", "employess", "staff", "worker", "workers", "member", "members", "person", "persons", "people", "employee name", "emp"],
             "department": ["department", "departments", "dept", "depts", "division", "team", "unit", "sector", "domain"],
@@ -319,10 +320,19 @@ class AnalysisEngine:
             unique_vals = df[col].dropna().astype(str).unique()
             for val in unique_vals:
                 val_clean = val.strip()
-                if len(val_clean) >= 2:
+                if len(val_clean) >= 1:
                     val_lower = val_clean.lower()
-                    # Check exact token matching with word boundaries in normalized query
-                    if re.search(r'\b' + re.escape(val_lower) + r'\b', normalized_q) or (len(val_lower) >= 4 and val_lower in normalized_q.split()):
+                    is_match = False
+                    if re.search(r'\b' + re.escape(val_lower) + r'\b', normalized_q):
+                        is_match = True
+                    elif val_lower in ('f', 'female') and any(w in normalized_q for w in ['female', 'females', 'women', 'woman', 'girl']):
+                        is_match = True
+                    elif val_lower in ('m', 'male') and any(w in normalized_q for w in ['male', 'males', 'men', 'man', 'boy']):
+                        is_match = True
+                    elif len(val_lower) >= 3 and val_lower in normalized_q.split():
+                        is_match = True
+
+                    if is_match:
                         if col not in matched_entities_by_col:
                             matched_entities_by_col[col] = []
                         if val_clean not in matched_entities_by_col[col]:
@@ -351,9 +361,8 @@ class AnalysisEngine:
         is_kpi_request = any(k in normalized_q for k in ["kpi", "kpis", "key metrics", "performance indicators", "metrics", "summary"])
 
         is_distinct_or_column = any(k in normalized_q for k in [
-            "only", "distinct", "unique", "give me the only", "give me only", "list all", "list of",
-            "show only", "what are the", "names in", "column", "columns", "extract", "which cities",
-            "which car", "what models", "which model", "tell me the", "give me the", "show me all"
+            "distinct", "unique", "list all distinct", "unique values of", "what are the distinct", "distinct values",
+            "which cities", "which car", "what models", "which model"
         ])
 
         is_aggregation = any(k in normalized_q for k in [
@@ -373,14 +382,9 @@ class AnalysisEngine:
         is_schema_query = any(k in normalized_q for k in ["what columns", "schema", "data types", "nulls", "missing", "duplicates", "empty values"])
 
         # ── CASE 1: MULTI-ENTITY BREAKDOWN & COUNT / "HOW MANY [TARGET] IN [ENTITIES]" ──
-        # E.g. "give mi the KPI'S for how many showroom opan in the Nashik.pune and mumbai?"
-        # Or "how many showrooms in Pune, Mumbai, Nashik"
-        # Or multi-city / multi-model comparative KPIs
         if (len(filter_entities) >= 1 and (is_count_or_how_many or is_kpi_request or is_comparison or len(filter_entities) >= 2)) and not is_schema_query:
-            # Determine target count dimension (e.g. showroom_name, car_model, etc.)
             target_dim_col = next((c for c in matched_cols if c in cat_cols and c != primary_filter_col), None)
             if not target_dim_col:
-                # Check if showroom, car, customer, salesperson is mentioned in query
                 if any(w in normalized_q for w in ["showroom", "showrooms", "dealer", "dealership"]) and any("showroom" in c.lower() for c in cat_cols):
                     target_dim_col = next(c for c in cat_cols if "showroom" in c.lower())
                 elif any(w in normalized_q for w in ["car", "cars", "model", "models"]) and any("model" in c.lower() or "car" in c.lower() for c in cat_cols):
@@ -396,7 +400,6 @@ class AnalysisEngine:
             filter_col_label = primary_filter_col.replace("_", " ").title() if primary_filter_col else "Entity"
 
             try:
-                # Build rich multi-entity aggregation query in DuckDB
                 in_entities_sql = ", ".join([f"'{e.lower()}'" for e in filter_entities])
                 target_unique_clause = f'COUNT(DISTINCT "{target_dim_col}") AS "Unique_{target_dim_label}s",' if target_dim_col else ""
                 rev_sum_clause = f'ROUND(SUM("{rev_col}"), 2) AS "Total_Revenue",' if rev_col else ""
@@ -419,7 +422,6 @@ class AnalysisEngine:
                 agg_df = con.execute(agg_sql).df()
                 agg_rows = clean_rows(agg_df, 100)
 
-                # Overall totals across these filtered entities
                 tot_unique_clause = f'COUNT(DISTINCT "{target_dim_col}") AS "Total_Unique_{target_dim_label}s",' if target_dim_col else ""
                 tot_rev_clause = f'ROUND(SUM("{rev_col}"), 2) AS "Combined_Revenue"' if rev_col else "0 AS Combined_Revenue"
                 tot_sql = f'''
@@ -437,7 +439,6 @@ class AnalysisEngine:
 
                 con.close()
 
-                # Build rich bullet points for each requested entity
                 entity_bullet_lines = []
                 for r in agg_rows:
                     ent_name = r[filter_col_label]
@@ -508,69 +509,65 @@ class AnalysisEngine:
             except Exception:
                 pass
 
-        # ── CASE 2: SINGLE SPECIFIC ENTITY DETAILS & METRICS ──────────────────
-        if primary_filter_col and len(filter_entities) == 1 and not is_distinct_or_column and not is_ranking and not is_schema_query:
-            matched_val = filter_entities[0]
+        # ── CASE 2: FILTERED ENTITY DETAILS & RECORDS (SLICING & ISOLATION) ───
+        # When query specifies a filter value (e.g. "show the only female records", "filter female", "only Female", "Pune records")
+        if primary_filter_col and len(filter_entities) >= 1 and not is_count_or_how_many and not is_kpi_request and not is_ranking and not is_schema_query:
+            matched_vals = filter_entities
             try:
-                raw_sql = f'SELECT * FROM dataset WHERE LOWER("{primary_filter_col}") = \'{matched_val.lower()}\' LIMIT 100;'
+                in_sql = ", ".join([f"'{e.lower()}'" for e in matched_vals])
+                raw_sql = f'SELECT * FROM dataset WHERE LOWER("{primary_filter_col}") IN ({in_sql}) LIMIT 200;'
                 filtered_df = con.execute(raw_sql).df()
                 con.close()
 
-                filtered_rows = clean_rows(filtered_df, 100)
+                filtered_rows = clean_rows(filtered_df, 200)
                 match_cnt = len(filtered_df)
 
                 sub_rev = float(filtered_df[rev_col].sum()) if rev_col and pd.api.types.is_numeric_dtype(filtered_df[rev_col]) else 0.0
                 sub_avg = float(filtered_df[rev_col].mean()) if rev_col and pd.api.types.is_numeric_dtype(filtered_df[rev_col]) else 0.0
                 sub_qty = int(filtered_df[qty_col].sum()) if qty_col and pd.api.types.is_numeric_dtype(filtered_df[qty_col]) else 0
 
-                breakdown_lines = []
-                for other_col in cat_cols:
-                    if other_col != primary_filter_col:
-                        top_items = filtered_df[other_col].value_counts().head(3)
-                        if not top_items.empty and len(top_items) > 1:
-                            summary_str = ", ".join([f"**{k}** ({v})" for k, v in top_items.items()])
-                            breakdown_lines.append(f"• **{other_col.replace('_', ' ').title()} Breakdown**: {summary_str}")
-
                 col_title = primary_filter_col.replace("_", " ").title()
-                rev_line = f"• **Total Revenue**: **{format_currency(sub_rev)}** (Average: {format_currency(sub_avg)} per transaction)\n" if sub_rev > 0 else ""
-                qty_line = f"• **Total Units Sold**: **{sub_qty:,} units**\n" if sub_qty > 0 else ""
-                breakdown_str = ("\n".join(breakdown_lines[:3]) + "\n") if breakdown_lines else ""
-                
+                ent_display = ", ".join(matched_vals)
+                pct_share = round((match_cnt / max(1, total_records)) * 100, 1)
+
+                rev_line = f"• **Total Value / Revenue**: **{format_currency(sub_rev)}** (Average: {format_currency(sub_avg)})\n" if sub_rev > 0 else ""
+                qty_line = f"• **Total Units**: **{sub_qty:,} units**\n" if sub_qty > 0 else ""
+
                 response_text = (
-                    f"### Analysis for **{matched_val}** ({col_title}) in **{dataset_name}**:\n\n"
-                    f"• **Total Recorded Transactions**: **{match_cnt:,} rows** ({round(match_cnt / max(1, total_records) * 100, 1)}% of dataset)\n"
+                    f"### Filtered Records for **{ent_display}** ({col_title}) in **{dataset_name}**:\n\n"
+                    f"• **Matching Records**: **{match_cnt:,} rows** ({pct_share}% of {total_records:,} total records in dataset)\n"
+                    f"• **Filter Applied**: `{primary_filter_col}` = **{ent_display}**\n"
                     f"{rev_line}"
                     f"{qty_line}"
-                    f"{breakdown_str}"
-                    f"• **Data View**: Showing {len(filtered_rows)} records for **{matched_val}** in the table below."
+                    f"• **Data View**: Showing the {len(filtered_rows)} matching records exclusively in the table below (no other entries included)."
                 )
 
                 return {
                     "text": response_text,
                     "insights": [
-                        f"Isolated {match_cnt:,} records for '{matched_val}' in {primary_filter_col}.",
-                        f"Accounts for {round(match_cnt / max(1, total_records) * 100, 1)}% of all entries in {dataset_name}.",
-                        f"Total revenue generated: {format_currency(sub_rev)}."
+                        f"Isolated {match_cnt:,} records where {primary_filter_col} is '{ent_display}'.",
+                        f"Represents {pct_share}% of all entries in {dataset_name}.",
+                        f"Filtered table includes only the requested {ent_display} rows."
                     ],
                     "stats": [
-                        {"label": f"{matched_val[:10]} Rows", "value": f"{match_cnt:,}"},
-                        {"label": "Total Value", "value": format_currency(sub_rev) if sub_rev > 0 else f"{match_cnt:,}"},
-                        {"label": "Average", "value": format_currency(sub_avg) if sub_avg > 0 else "-"}
+                        {"label": f"{ent_display[:10]} Rows", "value": f"{match_cnt:,}"},
+                        {"label": "Share of Dataset", "value": f"{pct_share}%"},
+                        {"label": "Total Dataset", "value": f"{total_records:,}"}
                     ],
                     "rows": filtered_rows,
                     "rowColumns": [str(c) for c in df.columns],
-                    "codeSnippet": f"df[df['{primary_filter_col}'] == '{matched_val}']",
+                    "codeSnippet": f"df[df['{primary_filter_col}'].str.lower().isin({[e.lower() for e in matched_vals]})]",
                     "codeDetails": {
                         "query": raw_query,
                         "datasetName": dataset_name,
-                        "pythonCode": f"import pandas as pd\ndf = pd.read_csv('{dataset_name}.csv')\nresult = df[df['{primary_filter_col}'].str.lower() == '{matched_val.lower()}']\nprint(result.head(100))",
+                        "pythonCode": f"import pandas as pd\ndf = pd.read_csv('{dataset_name}.csv')\nresult = df[df['{primary_filter_col}'].str.lower().isin({[e.lower() for e in matched_vals]})]\nprint(result)",
                         "sqlQuery": raw_sql,
-                        "jsCode": f"const filtered = dataset.filter(r => r.{primary_filter_col} === '{matched_val}');",
+                        "jsCode": f"const filtered = dataset.filter(r => {[e.lower() for e in matched_vals]}.includes(String(r.{primary_filter_col}).toLowerCase()));",
                         "executionSteps": [
-                            {"step": "1. Slicing Filter", "desc": f"Filtered on '{primary_filter_col}' = '{matched_val}'."},
-                            {"step": "2. Aggregation", "desc": f"Computed transaction velocity and sub-revenue."}
+                            {"step": "1. Exact Row Filter", "desc": f"Filtered on '{primary_filter_col}' = '{ent_display}'."},
+                            {"step": "2. Data Isolation", "desc": f"Extracted exactly {match_cnt} matching rows without extra entries."}
                         ],
-                        "simulatedOutput": json.dumps(filtered_rows[:2], indent=2)
+                        "simulatedOutput": json.dumps(filtered_rows, indent=2)
                     }
                 }
             except Exception:
@@ -586,7 +583,8 @@ class AnalysisEngine:
                 col_label = col_name.replace("_", " ").title()
 
                 try:
-                    rev_sum_dist = f', ROUND(SUM("{rev_col}"), 2) AS "Total_Revenue"' if rev_col else ""
+                    wants_revenue = rev_col and any(k in normalized_q for k in ["revenue", "sales", "turnover", "amount", "salary", "wage", "earning", "compensation", "price", "worth", "total", "sum"])
+                    rev_sum_dist = f', ROUND(SUM("{rev_col}"), 2) AS "Total_Revenue"' if wants_revenue else ""
                     dist_sql = f'''
                         SELECT 
                             "{col_name}" AS "{col_name}",
@@ -603,36 +601,64 @@ class AnalysisEngine:
                     distinct_values = dist_df[col_name].dropna().tolist()
                     distinct_count = len(distinct_values)
 
+                    top_item = dist_rows[0][col_name] if dist_rows else "N/A"
+                    top_cnt = dist_rows[0]["Record_Count"] if dist_rows else 0
+                    top_pct = dist_rows[0]["Share_Pct"] if dist_rows else 0
+
+                    is_all_one = (top_cnt <= 1)
+                    is_all_equal = len(dist_rows) > 0 and all(r.get("Record_Count") == top_cnt for r in dist_rows)
+                    is_tied_top = len(dist_rows) > 1 and dist_rows[0].get("Record_Count") == dist_rows[1].get("Record_Count")
+
                     items_bullets = []
                     for idx, row in enumerate(dist_rows[:10], 1):
                         v_name = row[col_name]
                         v_cnt = row["Record_Count"]
                         v_pct = row["Share_Pct"]
-                        rev_str = f" — {format_currency(row['Total_Revenue'])}" if "Total_Revenue" in row and row["Total_Revenue"] else ""
-                        items_bullets.append(f"{idx}. **{v_name}** — **{v_cnt} records** ({v_pct}% share{rev_str})")
+                        rev_str = f" — {format_currency(row['Total_Revenue'])}" if "Total_Revenue" in row and row["Total_Revenue"] and wants_revenue else ""
+                        if is_all_one:
+                            items_bullets.append(f"{idx}. **{v_name}**{rev_str}")
+                        else:
+                            rec_word = "record" if v_cnt == 1 else "records"
+                            items_bullets.append(f"{idx}. **{v_name}** — **{v_cnt} {rec_word}** ({v_pct}% share{rev_str})")
 
-                    top_item = dist_rows[0][col_name] if dist_rows else "N/A"
-                    top_cnt = dist_rows[0]["Record_Count"] if dist_rows else 0
-                    top_pct = dist_rows[0]["Share_Pct"] if dist_rows else 0
+                    if is_all_one:
+                        freq_line = f"• **Distribution**: All **{distinct_count} {col_label.lower()}s** are distinct (1 record each / 100% unique)\n"
+                    elif is_all_equal:
+                        freq_line = f"• **Distribution**: All **{distinct_count} values** appear with equal frequency ({top_cnt} records each)\n"
+                    elif is_tied_top:
+                        tied_names = [str(r[col_name]) for r in dist_rows if r.get("Record_Count") == top_cnt]
+                        freq_line = f"• **Top {col_label}s (Tied)**: **{', '.join(tied_names[:3])}** with **{top_cnt} records** each\n"
+                    else:
+                        freq_line = f"• **Most Frequent {col_label}**: **{top_item}** with **{top_cnt} records** ({top_pct}% of dataset)\n"
 
                     response_text = (
                         f"The dataset **{dataset_name}** contains **{distinct_count} unique {col_label}s** across {total_records:,} total records:\n\n"
                         + "\n".join(items_bullets) + "\n\n"
                         f"• **Total Unique {col_label}s**: **{distinct_count}**\n"
-                        f"• **Most Frequent {col_label}**: **{top_item}** with **{top_cnt} records** ({top_pct}% of dataset)\n"
-                        f"• **Data View**: Showing the distinct {col_label} list and breakdown in the table below."
+                        + freq_line
+                        + f"• **Data View**: Showing the distinct {col_label} list and breakdown in the table below."
                     )
 
-                    stats = [
-                        {"label": f"Unique {col_label[:7]}s", "value": str(distinct_count)},
-                        {"label": "Top Value", "value": f"{str(top_item)[:10]} ({top_cnt})"},
-                        {"label": "Coverage", "value": "100%"}
-                    ]
-
-                    insights = [
-                        f"Found {distinct_count} distinct {col_label} values in {dataset_name}.",
-                        f"'{top_item}' represents the highest concentration with {top_pct}% of total records."
-                    ]
+                    if is_all_one or is_all_equal:
+                        stats = [
+                            {"label": f"Unique {col_label[:7]}s", "value": str(distinct_count)},
+                            {"label": "Distribution", "value": "100% Unique" if is_all_one else f"Equal ({top_cnt})"},
+                            {"label": "Coverage", "value": "100%"}
+                        ]
+                        insights = [
+                            f"Found {distinct_count} distinct {col_label} values in {dataset_name}.",
+                            f"All {col_label} values appear with equal frequency ({top_cnt} {'record' if top_cnt == 1 else 'records'} each)."
+                        ]
+                    else:
+                        stats = [
+                            {"label": f"Unique {col_label[:7]}s", "value": str(distinct_count)},
+                            {"label": "Top Value", "value": f"{str(top_item)[:10]} ({top_cnt})"},
+                            {"label": "Coverage", "value": "100%"}
+                        ]
+                        insights = [
+                            f"Found {distinct_count} distinct {col_label} values in {dataset_name}.",
+                            f"'{top_item}' represents the highest concentration with {top_pct}% of total records."
+                        ]
 
                     code_details = {
                         "query": raw_query,

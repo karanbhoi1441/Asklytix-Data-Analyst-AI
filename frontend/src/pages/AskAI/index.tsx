@@ -464,10 +464,96 @@ export const AskAIPage: React.FC = () => {
         payment_mode: ['payment', 'payment mode', 'method', 'pay mode'],
         salesperson: ['salesperson', 'sales rep', 'rep', 'agent', 'seller'],
         salary: ['salary', 'salaries', 'salaried', 'wage', 'wages', 'pay', 'paid', 'highest paid', 'lowest paid', 'earning', 'earnings', 'income', 'compensation', 'package', 'ctc'],
+        gender: ['gender', 'sex', 'female', 'male', 'women', 'woman', 'men', 'man', 'girl', 'boy', 'females', 'males'],
         age: ['age', 'aged', 'years old', 'oldest', 'youngest', 'elderly', 'senior'],
         department: ['department', 'departments', 'dept', 'depts', 'division', 'team', 'unit', 'sector'],
         employee: ['employee', 'employees', 'employess', 'staff', 'worker', 'workers', 'member', 'person', 'people', 'employee name', 'emp']
       };
+
+      // Check for categorical entity value matches (e.g. 'female', 'male', 'pune', 'mumbai', etc.)
+      let filterCol: string | null = null;
+      let filterVal: string | null = null;
+      for (const col of cols) {
+        const isNumeric = typeof firstRow[col] === 'number';
+        if (isNumeric) continue;
+        const uniqueVals = Array.from(new Set(tableData.map(r => String(r[col] ?? '').trim()))).filter(Boolean);
+        for (const uv of uniqueVals) {
+          if (uv.length >= 1) {
+            const uvLower = uv.toLowerCase();
+            let isMatch = false;
+            if (new RegExp(`\\b${uvLower}\\b`, 'i').test(lower)) {
+              isMatch = true;
+            } else if (uvLower === 'female' || uvLower === 'f') {
+              if (/\b(female|females|women|woman|girl)\b/i.test(lower)) isMatch = true;
+            } else if (uvLower === 'male' || uvLower === 'm') {
+              if (/\b(male|males|men|man|boy)\b/i.test(lower)) isMatch = true;
+            }
+            if (isMatch) {
+              filterCol = col;
+              filterVal = uv;
+              break;
+            }
+          }
+        }
+        if (filterCol) break;
+      }
+
+      // If an entity filter was matched (e.g. "show the only female records")
+      if (filterCol && filterVal) {
+        const filtered = tableData.filter(r => String(r[filterCol!] ?? '').trim().toLowerCase() === filterVal!.toLowerCase());
+        const total = tableData.length;
+        const count = filtered.length;
+        const pct = ((count / Math.max(total, 1)) * 100).toFixed(1);
+        const colTitle = filterCol.replace(/_/g, ' ');
+
+        const aiResponseText = `### Filtered Records for **${filterVal}** (${colTitle}) in **${dataset.name}**:\n\n`
+          + `• **Matching Records**: **${count} rows** (${pct}% of ${total.toLocaleString()} total records in dataset)\n`
+          + `• **Filter Applied**: \`${filterCol}\` = **${filterVal}**\n`
+          + `• **Data View**: Showing the ${count} matching records exclusively in the table below (no extra entries).`;
+
+        const stats = [
+          { label: `${filterVal.slice(0, 10)} Rows`, value: `${count}` },
+          { label: 'Share', value: `${pct}%` },
+          { label: 'Total Records', value: `${total}` }
+        ];
+
+        const insights = [
+          `Isolated ${count} records where ${filterCol} is '${filterVal}'.`,
+          `Represents ${pct}% of all entries in ${dataset.name}.`,
+          `Filtered table shows only the requested ${filterVal} records without extra entries.`
+        ];
+
+        const codeDetails: CodeRecordDetails = {
+          query,
+          datasetName: dataset.name,
+          pythonCode: `import pandas as pd\ndf = pd.read_csv("${dataset.name}.${dataset.format}")\nresult = df[df['${filterCol}'].str.lower() == '${filterVal.toLowerCase()}']\nprint(result)`,
+          sqlQuery: `SELECT * FROM active_dataset WHERE LOWER("${filterCol}") = '${filterVal.toLowerCase()}';`,
+          jsCode: `const filtered = tableData.filter(r => String(r.${filterCol}).toLowerCase() === '${filterVal.toLowerCase()}');`,
+          executionSteps: [
+            { step: '1. Slicing Filter', desc: `Filtered rows where '${filterCol}' = '${filterVal}'.` },
+            { step: '2. Isolation', desc: `Extracted exactly ${count} matching rows.` }
+          ],
+          simulatedOutput: JSON.stringify(filtered.slice(0, 5), null, 2)
+        };
+
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `ai-${Date.now()}`,
+            sender: 'ai',
+            text: aiResponseText,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            insights,
+            codeSnippet: `df[df['${filterCol}'] == '${filterVal}']`,
+            codeDetails,
+            stats,
+            rows: filtered,
+            rowColumns: cols
+          }
+        ]);
+        setIsAiTyping(false);
+        return;
+      }
 
       // Match columns in query
       const matchedCols: string[] = [];
@@ -488,7 +574,7 @@ export const AskAIPage: React.FC = () => {
       }
       const uniqueMatchedCols = Array.from(new Set(matchedCols));
 
-      const isDistinctOrColumn = /only|distinct|unique|give me the only|give me only|list all|list of|show only|what are the|which cities|which car|what models|tell me the/i.test(lower);
+      const isDistinctOrColumn = /distinct|unique|list all distinct|unique values of/i.test(lower);
       const isAggregation = /average|avg|mean|sum|total|max|maximum|highest|min|minimum|lowest|median/i.test(lower);
       const isBottom = /bottom|last|lowest|worst|tail|least|smallest/i.test(lower);
       const numMatch = lower.match(/\b(\d{1,3})\b/);
@@ -515,20 +601,40 @@ export const AskAIPage: React.FC = () => {
           }));
 
           const colLabel = targetCol.replace(/_/g, ' ');
+          const topItem = sortedEntries[0]?.[0] || 'N/A';
+          const topCnt = sortedEntries[0]?.[1] || 0;
+          const isAllOne = topCnt <= 1;
+          const isAllEqual = sortedEntries.length > 0 && sortedEntries.every(e => e[1] === topCnt);
+          const isTiedTop = sortedEntries.length > 1 && sortedEntries[0][1] === sortedEntries[1][1];
+
+          let freqHighlight = '';
+          if (isAllOne) {
+            freqHighlight = `• **Distribution**: All **${sortedEntries.length} ${colLabel}s** are distinct (1 record each / 100% unique)\n`;
+          } else if (isAllEqual) {
+            freqHighlight = `• **Distribution**: All **${sortedEntries.length} values** appear with equal frequency (${topCnt} records each)\n`;
+          } else if (isTiedTop) {
+            const tiedNames = sortedEntries.filter(e => e[1] === topCnt).map(e => e[0]);
+            freqHighlight = `• **Top ${colLabel}s (Tied)**: **${tiedNames.slice(0, 3).join(', ')}** with **${topCnt} records** each\n`;
+          } else {
+            const topPct = ((topCnt / Math.max(tableData.length, 1)) * 100).toFixed(1);
+            freqHighlight = `• **Most Frequent**: **${topItem}** (${topCnt} records, ${topPct}% share)\n`;
+          }
 
           const aiResponseText = `The dataset **${dataset.name}** contains **${sortedEntries.length} unique ${colLabel}s** across ${tableData.length.toLocaleString()} records.\n\n`
-            + `• **Most Frequent**: **${sortedEntries[0]?.[0] || 'N/A'}** (${sortedEntries[0]?.[1] || 0} records, ${((sortedEntries[0]?.[1] || 0) / Math.max(tableData.length, 1) * 100).toFixed(1)}% share)\n`
+            + freqHighlight
             + `• **Data View**: The distinct ${colLabel} breakdown is shown in the table below.`;
 
           const stats = [
             { label: `Unique ${colLabel.slice(0, 7)}s`, value: `${sortedEntries.length}` },
-            { label: 'Top Value', value: `${sortedEntries[0]?.[0] || 'N/A'} (${sortedEntries[0]?.[1] || 0})` },
+            { label: (isAllOne || isAllEqual) ? 'Distribution' : 'Top Value', value: isAllOne ? '100% Unique' : (isAllEqual ? `Equal (${topCnt})` : `${topItem} (${topCnt})`) },
             { label: 'Coverage', value: '100%' }
           ];
 
           const insights = [
             `Extracted ${sortedEntries.length} distinct ${colLabel} values from active dataset.`,
-            `'${sortedEntries[0]?.[0] || 'N/A'}' represents the highest concentration of records.`,
+            (isAllOne || isAllEqual)
+              ? `All ${colLabel} values appear with equal frequency (${topCnt} ${topCnt === 1 ? 'record' : 'records'} each).`
+              : `'${topItem}' represents the highest concentration of records.`,
             `Isolated column '${targetCol}' exclusively based on your query.`
           ];
 
@@ -736,25 +842,25 @@ export const AskAIPage: React.FC = () => {
   const activeRows = tableData.length > 0 ? tableData : (dataset.previewRows || []);
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 space-y-6 pb-12">
 
       {/* ════════════════════════════════════════════════════════════════════════
           0. TOP SECTION HEADER (DATA HEALTH & CLEAN)
       ════════════════════════════════════════════════════════════════════════ */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
-            <Wand2 className="w-6 h-6 text-cyan-400" />
-            Data Health & Clean
+          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
+            <Wand2 className="w-5 h-5 sm:w-6 sm:h-6 text-cyan-400" />
+            <span>Data Health & Clean</span>
           </h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-400 mt-1 max-w-3xl leading-relaxed">
             {cleanStatus === 'cleaned' || qualityScore === 100
               ? `✔ Dataset is 100% Clean & Verified: All missing values imputed, date formats standardized, and duplicates removed for ${dataset.name}.${dataset.format}.`
               : `Automated data health inspection, AI cleaning & quality validation for ${dataset.name}.${dataset.format}.`}
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Badge variant={qualityScore === 100 || cleanStatus === 'cleaned' ? 'success' : 'primary'} size="sm">
             <Bot className="w-3.5 h-3.5 mr-1" />
             {cleanStatus === 'cleaned' || qualityScore === 100 ? 'Health Status: 100% Accurate' : `Connected: ${dataset.name}.${dataset.format}`}
@@ -767,24 +873,24 @@ export const AskAIPage: React.FC = () => {
       ════════════════════════════════════════════════════════════════════════ */}
       <Card
         variant="glass"
-        className="p-5 border-cyan-500/30 shadow-2xl relative overflow-hidden bg-gradient-to-r from-slate-950 via-[#0a1628] to-slate-950"
+        className="p-4 sm:p-5 border-cyan-500/30 shadow-2xl relative overflow-hidden bg-gradient-to-r from-slate-950 via-[#0a1628] to-slate-950"
       >
         {/* Glow effect */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 relative z-10">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-5 relative z-10">
           
           {/* Left: Dataset Name & Quick Stats */}
-          <div className="flex items-center gap-4">
-            <div className="w-13 h-13 rounded-2xl flex items-center justify-center bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(6,182,212,0.35)] shrink-0">
-              <Database className="w-6 h-6" />
+          <div className="flex items-start sm:items-center gap-3 sm:gap-4">
+            <div className="w-11 h-11 sm:w-13 sm:h-13 rounded-2xl flex items-center justify-center bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(6,182,212,0.35)] shrink-0 mt-0.5 sm:mt-0">
+              <Database className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
 
-            <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="text-xs text-cyan-400 font-mono font-semibold uppercase tracking-wider block">Connected Dataset</span>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xl font-black text-white tracking-tight">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] sm:text-xs text-cyan-400 font-mono font-semibold uppercase tracking-wider block">Connected Dataset</span>
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                  <h2 className="text-base sm:text-xl font-black text-white tracking-tight truncate max-w-[200px] sm:max-w-md">
                     {dataset.name}.{dataset.format}
                   </h2>
                   <Badge variant="primary" size="sm">
@@ -796,7 +902,7 @@ export const AskAIPage: React.FC = () => {
                 </div>
               </div>
 
-              <p className="text-xs text-slate-400 font-mono mt-1 flex items-center gap-2">
+              <p className="text-[11px] sm:text-xs text-slate-400 font-mono mt-1 flex items-center gap-1.5 sm:gap-2 flex-wrap">
                 <span>{dataset.sizeLabel}</span>
                 <span>•</span>
                 <span className="text-cyan-300 font-bold">{activeRows.length} rows</span>
@@ -811,7 +917,7 @@ export const AskAIPage: React.FC = () => {
           </div>
 
           {/* Right: 1-Click Auto Clean Action & Download Button */}
-          <div className="flex items-center gap-3 shrink-0 flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0 flex-wrap">
             <motion.button
               whileHover={{ scale: 1.02, boxShadow: '0 0 25px rgba(6,182,212,0.5)' }}
               whileTap={{ scale: 0.98 }}

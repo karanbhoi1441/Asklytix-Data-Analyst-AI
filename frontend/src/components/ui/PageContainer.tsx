@@ -27,7 +27,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
 }) => {
   const maxWidthStyles = {
     normal: 'max-w-7xl',
-    wide: 'max-w-[1600px]',
+    wide: 'max-w-[1920px]',
     full: 'w-full'
   };
 
@@ -39,34 +39,34 @@ export const PageContainer: React.FC<PageContainerProps> = ({
       initial="hidden"
       animate="visible"
       className={cn(
-        'w-full mx-auto space-y-6',
-        isCanvas ? 'w-full px-2 sm:px-4 py-4' : 'px-4 sm:px-6 lg:px-8 py-6 sm:py-8',
+        'w-full mx-auto space-y-5 sm:space-y-6',
+        isCanvas ? 'w-full px-3 sm:px-6 lg:px-8 py-4 sm:py-6' : 'px-3 sm:px-6 lg:px-8 py-5 sm:py-8',
         !isCanvas && maxWidthStyles[maxWidth],
         className
       )}
     >
       {(title || subtitle || actions) && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800/80">
-          <div className="space-y-1">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b border-slate-800/80">
+          <div className="space-y-1 min-w-0">
             {badge && (
               <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-cyan-400 bg-cyan-500/10 px-2.5 py-0.5 rounded-full border border-cyan-500/30 mb-1">
                 {badge}
               </span>
             )}
             {title && (
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white tracking-tight truncate">
                 {title}
               </h1>
             )}
             {subtitle && (
-              <p className="text-sm text-slate-400 leading-relaxed max-w-2xl">
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-2xl text-break-safe">
                 {subtitle}
               </p>
             )}
           </div>
 
           {actions && (
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 shrink-0">
               {actions}
             </div>
           )}

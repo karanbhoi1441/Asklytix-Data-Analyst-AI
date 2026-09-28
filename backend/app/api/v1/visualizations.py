@@ -127,16 +127,27 @@ def list_visualizations(
     
     items = query.order_by(SavedVisualization.position.asc(), SavedVisualization.created_at.asc()).all()
 
-    return {
-        "total": len(items),
-        "visualizations": [
+    visualizations_list = []
+    for item in items:
+        raw_cols = item.columns_used
+        col_names = []
+        spec_data = None
+        chart_spec = None
+        if isinstance(raw_cols, dict):
+            col_names = raw_cols.get("columns", [])
+            spec_data = raw_cols.get("data")
+            chart_spec = raw_cols.get("chart_specification")
+        elif isinstance(raw_cols, list):
+            col_names = raw_cols
+
+        visualizations_list.append(
             SavedVisualizationItem(
                 id=item.id,
                 dataset_id=item.dataset_id,
                 user_question=item.user_question,
                 chart_type=item.chart_type,
                 title=item.title,
-                columns_used=item.columns_used or [],
+                columns_used=col_names,
                 sandbox_execution_id=item.sandbox_execution_id,
                 image_url=item.image_url,
                 base64_image=item.base64_image,
@@ -144,10 +155,15 @@ def list_visualizations(
                 explanation=item.explanation,
                 execution_time_ms=item.execution_time_ms or 0.0,
                 position=item.position,
-                created_at=item.created_at.isoformat() if item.created_at else None
+                created_at=item.created_at.isoformat() if item.created_at else None,
+                data=spec_data,
+                chart_specification=chart_spec
             )
-            for item in items
-        ]
+        )
+
+    return {
+        "total": len(visualizations_list),
+        "visualizations": visualizations_list
     }
 
 
@@ -217,13 +233,20 @@ def generate_visualization_endpoint(
         ).order_by(SavedVisualization.position.desc()).first()
         next_pos = (last_item.position + 1) if last_item else 1
 
+        cols_val = viz_data.get("columns_used", [])
+        stored_payload = {
+            "columns": cols_val if isinstance(cols_val, list) else [],
+            "data": viz_data.get("data") or (result.get("chart_specification") or {}).get("data") or [],
+            "chart_specification": result.get("chart_specification")
+        }
+
         saved = SavedVisualization(
             user_id=user.id,
             dataset_id=dataset.id,
             user_question=user_query,
             chart_type=viz_data["chart_type"],
             title=viz_data["title"],
-            columns_used=viz_data["columns_used"],
+            columns_used=stored_payload,
             sandbox_execution_id=result.get("execution_id"),
             image_url=viz_data["image_url"],
             base64_image=viz_data.get("base64_image"),
@@ -242,7 +265,7 @@ def generate_visualization_endpoint(
             "user_question": saved.user_question,
             "chart_type": saved.chart_type,
             "title": saved.title,
-            "columns_used": saved.columns_used or [],
+            "columns_used": cols_val if isinstance(cols_val, list) else [],
             "sandbox_execution_id": saved.sandbox_execution_id,
             "image_url": saved.image_url,
             "base64_image": saved.base64_image,
@@ -250,7 +273,9 @@ def generate_visualization_endpoint(
             "explanation": saved.explanation,
             "execution_time_ms": saved.execution_time_ms,
             "position": saved.position,
-            "created_at": saved.created_at.isoformat() if saved.created_at else None
+            "created_at": saved.created_at.isoformat() if saved.created_at else None,
+            "data": stored_payload["data"],
+            "chart_specification": stored_payload["chart_specification"]
         }
 
     return result

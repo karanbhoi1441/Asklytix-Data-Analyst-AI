@@ -49,6 +49,8 @@ class SavedVisualizationItem(BaseModel):
     execution_time_ms: float = 0.0
     position: int = 1
     created_at: Optional[str] = None
+    data: Optional[List[Dict[str, Any]]] = None
+    chart_specification: Optional[Dict[str, Any]] = None
 
 
 class VisualizationResponse(BaseModel):

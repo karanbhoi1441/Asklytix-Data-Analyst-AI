@@ -162,118 +162,120 @@ export const ConnectDataSourcePage: React.FC = () => {
   };
 
   return (
-    <div className="flex min-h-screen w-full" style={{ background: '#070d1a' }}>
+    <div className="flex flex-col md:flex-row min-h-screen w-full relative" style={{ background: '#070d1a' }}>
 
-      {/* ── LEFT SIDEBAR ─────────────────────────────────────────────── */}
+      {/* ── DESKTOP LEFT SIDEBAR (Hidden on mobile < md) ───────────────── */}
       <aside
-        className="w-[185px] shrink-0 flex flex-col border-r"
+        className="hidden md:flex w-[190px] lg:w-[220px] shrink-0 flex-col border-r justify-between"
         style={{ background: '#060b17', borderColor: '#1a2744' }}
       >
-        {/* Logo */}
-        <div
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 px-3.5 py-3 border-b cursor-pointer group select-none transition-colors hover:bg-slate-900/40"
-          style={{ borderColor: '#1a2744' }}
-        >
-          <div className="relative flex items-center justify-center shrink-0">
-            <div className="absolute inset-0 bg-cyan-500/25 rounded-full blur-md opacity-60 group-hover:opacity-100 transition-opacity" />
-            <img
-              src={logo3dImg}
-              alt="AskLytix 3D Logo"
-              className="w-8 h-8 object-contain relative z-10 drop-shadow-[0_2px_8px_rgba(6,182,212,0.45)] transition-transform duration-300 group-hover:scale-105"
-            />
-          </div>
-          <div className="flex items-baseline">
-            <span className="text-white font-bold text-sm tracking-tight">Ask</span>
-            <span className="font-extrabold text-sm tracking-tight bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">Lytix</span>
-            <span className="ml-1 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping opacity-75 inline-block" />
-          </div>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-1">
-          {/* Active: Data Source */}
+        {/* Top Logo & Branding */}
+        <div>
           <div
-            className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl select-none"
-            style={{ background: '#0f2d5e', border: '1px solid #1e4a8a' }}
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2.5 px-4 py-3.5 border-b cursor-pointer group select-none transition-colors hover:bg-slate-900/40"
+            style={{ borderColor: '#1a2744' }}
           >
-            <Database className="w-4 h-4 shrink-0" style={{ color: '#3b82f6' }} />
-            <span className="text-sm font-bold" style={{ color: '#60a5fa' }}>Data Source</span>
+            <div className="relative flex items-center justify-center shrink-0">
+              <div className="absolute inset-0 bg-cyan-500/25 rounded-full blur-md opacity-60 group-hover:opacity-100 transition-opacity" />
+              <img
+                src={logo3dImg}
+                alt="AskLytix 3D Logo"
+                className="w-8 h-8 object-contain relative z-10 drop-shadow-[0_2px_8px_rgba(6,182,212,0.45)] transition-transform duration-300 group-hover:scale-105"
+              />
+            </div>
+            <div className="flex items-baseline">
+              <span className="text-white font-bold text-sm tracking-tight">Ask</span>
+              <span className="font-extrabold text-sm tracking-tight bg-gradient-to-r from-cyan-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">Lytix</span>
+              <span className="ml-1 w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping opacity-75 inline-block" />
+            </div>
           </div>
 
-          {/* Locked/Unlocked: Data Health & Clean */}
-          {isDatasetConnected ? (
-            <motion.div
-              className="flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer select-none text-slate-300 hover:bg-slate-900 transition-all border border-transparent hover:border-cyan-500/30"
-              whileHover={{ background: '#0d1a2e' }}
-              transition={{ duration: 0.15 }}
-              onClick={() => navigate('/ask')}
-            >
-              <div className="flex items-center gap-2.5">
-                <MessageSquare className="w-4 h-4 text-cyan-400 shrink-0" />
-                <span className="text-sm font-medium text-slate-200">Data Health & Clean</span>
-              </div>
-              <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]" />
-            </motion.div>
-          ) : (
+          {/* Navigation Links */}
+          <nav className="px-3 py-4 space-y-1.5">
+            {/* Active: Data Source */}
             <div
-              onClick={handleLockedClick}
-              className="flex items-center justify-between px-3 py-2.5 rounded-xl select-none text-slate-600 cursor-not-allowed opacity-60 hover:opacity-80 transition-all"
-              title="Upload a dataset first to unlock Data Health & Clean"
+              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl select-none"
+              style={{ background: '#0f2d5e', border: '1px solid #1e4a8a' }}
             >
-              <div className="flex items-center gap-2.5">
-                <MessageSquare className="w-4 h-4 text-slate-600 shrink-0" />
-                <span className="text-sm font-medium text-slate-600">Data Health & Clean</span>
-              </div>
-              <Lock className="w-3.5 h-3.5 text-slate-600" />
+              <Database className="w-4 h-4 shrink-0" style={{ color: '#3b82f6' }} />
+              <span className="text-sm font-bold" style={{ color: '#60a5fa' }}>Data Source</span>
             </div>
-          )}
 
-          {/* Locked/Unlocked: Dashboard */}
-          {isDatasetConnected ? (
-            <motion.div
-              className="flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer select-none text-slate-300 hover:bg-slate-900 transition-all border border-transparent hover:border-purple-500/30"
-              whileHover={{ background: '#0d1a2e' }}
-              transition={{ duration: 0.15 }}
-              onClick={() => navigate('/dashboard')}
-            >
-              <div className="flex items-center gap-2.5">
-                <Layers className="w-4 h-4 text-purple-400 shrink-0" />
-                <span className="text-sm font-medium text-slate-200">Analysis Chat</span>
-              </div>
-            </motion.div>
-          ) : (
-            <div
-              onClick={handleLockedClick}
-              className="flex items-center justify-between px-3 py-2.5 rounded-xl select-none text-slate-600 cursor-not-allowed opacity-60 hover:opacity-80 transition-all"
-              title="Upload a dataset first to unlock analysis chat"
-            >
-              <div className="flex items-center gap-2.5">
-                <Layers className="w-4 h-4 text-slate-600 shrink-0" />
-                <span className="text-sm font-medium text-slate-600">Analysis Chat</span>
-              </div>
-              <Lock className="w-3.5 h-3.5 text-slate-600" />
-            </div>
-          )}
-
-          {/* Locked Notice Message */}
-          <AnimatePresence>
-            {lockedNotice && (
+            {/* Locked/Unlocked: Data Health & Clean */}
+            {isDatasetConnected ? (
               <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] text-center font-semibold"
+                className="flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer select-none text-slate-300 hover:bg-slate-900 transition-all border border-transparent hover:border-cyan-500/30"
+                whileHover={{ background: '#0d1a2e' }}
+                transition={{ duration: 0.15 }}
+                onClick={() => navigate('/ask')}
               >
-                🔒 Upload a dataset first to unlock analysis & chat!
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <MessageSquare className="w-4 h-4 text-cyan-400 shrink-0" />
+                  <span className="text-sm font-medium text-slate-200 truncate">Data Health & Clean</span>
+                </div>
+                <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] shrink-0" />
               </motion.div>
+            ) : (
+              <div
+                onClick={handleLockedClick}
+                className="flex items-center justify-between px-3 py-2.5 rounded-xl select-none text-slate-600 cursor-not-allowed opacity-60 hover:opacity-80 transition-all"
+                title="Upload a dataset first to unlock Data Health & Clean"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <MessageSquare className="w-4 h-4 text-slate-600 shrink-0" />
+                  <span className="text-sm font-medium text-slate-600 truncate">Data Health & Clean</span>
+                </div>
+                <Lock className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+              </div>
             )}
-          </AnimatePresence>
-        </nav>
+
+            {/* Locked/Unlocked: Dashboard */}
+            {isDatasetConnected ? (
+              <motion.div
+                className="flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer select-none text-slate-300 hover:bg-slate-900 transition-all border border-transparent hover:border-purple-500/30"
+                whileHover={{ background: '#0d1a2e' }}
+                transition={{ duration: 0.15 }}
+                onClick={() => navigate('/dashboard')}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Layers className="w-4 h-4 text-purple-400 shrink-0" />
+                  <span className="text-sm font-medium text-slate-200 truncate">Analysis Chat</span>
+                </div>
+              </motion.div>
+            ) : (
+              <div
+                onClick={handleLockedClick}
+                className="flex items-center justify-between px-3 py-2.5 rounded-xl select-none text-slate-600 cursor-not-allowed opacity-60 hover:opacity-80 transition-all"
+                title="Upload a dataset first to unlock analysis chat"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <Layers className="w-4 h-4 text-slate-600 shrink-0" />
+                  <span className="text-sm font-medium text-slate-600 truncate">Analysis Chat</span>
+                </div>
+                <Lock className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+              </div>
+            )}
+
+            {/* Locked Notice Message */}
+            <AnimatePresence>
+              {lockedNotice && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] text-center font-semibold"
+                >
+                  🔒 Upload a dataset first to unlock analysis & chat!
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </nav>
+        </div>
 
         {/* User Card */}
         <div
-          className="mx-3 mb-4 px-3 py-3 rounded-xl flex items-center gap-2.5 cursor-pointer border"
+          className="mx-3 mb-4 px-3 py-3 rounded-xl flex items-center gap-2.5 cursor-pointer border shrink-0"
           style={{ background: '#0a1628', borderColor: '#1a2744' }}
         >
           <div
@@ -291,44 +293,88 @@ export const ConnectDataSourcePage: React.FC = () => {
       </aside>
 
       {/* ── MAIN AREA ─────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 w-full">
 
-        {/* ── TOP HEADER ──────────────────────────────────────────────── */}
+        {/* ── TOP HEADER (Responsive for all screen sizes) ─────────────── */}
         <header
-          className="flex items-center justify-between px-6 py-4 border-b shrink-0"
-          style={{ borderColor: '#1a2744', background: '#070d1a' }}
+          className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b shrink-0 z-20 backdrop-blur-md"
+          style={{ borderColor: '#1a2744', background: 'rgba(7, 13, 26, 0.94)' }}
         >
-          <h1 className="text-base font-extrabold text-white tracking-wide">Connect Data Source</h1>
-          <motion.button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-slate-200 border transition-all cursor-pointer"
-            style={{ background: 'transparent', borderColor: '#1e3a6a' }}
-            whileHover={{ borderColor: '#3b82f6', background: '#0f2040', boxShadow: '0 0 12px rgba(59,130,246,0.15)', color: '#fff' }}
-            transition={{ duration: 0.15 }}
-          >
-            <LogOut className="w-4 h-4" />
-            Logout
-          </motion.button>
+          {/* Mobile Brand Logo & Header */}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div
+              onClick={() => navigate('/')}
+              className="flex md:hidden items-center gap-2 cursor-pointer select-none shrink-0"
+            >
+              <img
+                src={logo3dImg}
+                alt="AskLytix Logo"
+                className="w-7 h-7 object-contain drop-shadow-[0_2px_8px_rgba(6,182,212,0.45)]"
+              />
+              <span className="text-white font-bold text-sm tracking-tight hidden xs:inline">Ask<span className="text-cyan-400">Lytix</span></span>
+            </div>
+
+            <div className="hidden md:block">
+              <h1 className="text-base font-extrabold text-white tracking-wide">Connect Data Source</h1>
+            </div>
+
+            {/* Mobile Navigation Pill Tabs (< md) */}
+            <div className="flex md:hidden items-center gap-1.5 ml-1">
+              <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-[#0f2d5e] text-[#60a5fa] border border-[#1e4a8a]">
+                Source
+              </span>
+              {isDatasetConnected && (
+                <>
+                  <button
+                    onClick={() => navigate('/ask')}
+                    className="px-2 py-1 rounded-lg text-xs font-medium text-slate-300 hover:text-white bg-slate-900/80 border border-slate-800"
+                  >
+                    Clean
+                  </button>
+                  <button
+                    onClick={() => navigate('/dashboard')}
+                    className="px-2 py-1 rounded-lg text-xs font-medium text-purple-300 hover:text-white bg-slate-900/80 border border-slate-800"
+                  >
+                    Chat
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Right Header: Logout & Quick Action */}
+          <div className="flex items-center gap-2 shrink-0">
+            <motion.button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-200 border transition-all cursor-pointer"
+              style={{ background: 'transparent', borderColor: '#1e3a6a' }}
+              whileHover={{ borderColor: '#3b82f6', background: '#0f2040', boxShadow: '0 0 12px rgba(59,130,246,0.15)', color: '#fff' }}
+              transition={{ duration: 0.15 }}
+            >
+              <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span>Logout</span>
+            </motion.button>
+          </div>
         </header>
 
         {/* ── PAGE CONTENT ────────────────────────────────────────────── */}
-        <main className="relative flex-1 flex flex-col items-center justify-center px-6 py-6 overflow-y-auto">
+        <main className="relative flex-1 flex flex-col items-center justify-center px-3 sm:px-6 lg:px-8 py-6 sm:py-10 overflow-y-auto">
           {/* Live Data Pipeline & Ingestion Motion Background */}
           <DataSourceMotionBackground />
 
-          <div className="relative z-10 w-full max-w-3xl space-y-5">
+          <div className="relative z-10 w-full max-w-3xl lg:max-w-4xl space-y-5 my-auto">
 
             {/* Hero Icon */}
             <div className="flex justify-center">
               <div
-                className="w-14 h-14 rounded-2xl flex items-center justify-center relative"
+                className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center relative"
                 style={{
                   background: 'linear-gradient(135deg, #0f2a5e, #1e1b4b)',
                   border: '1px solid #1e4a8a',
                   boxShadow: '0 0 30px rgba(59,130,246,0.25), 0 0 60px rgba(99,102,241,0.1)',
                 }}
               >
-                <Database className="w-7 h-7" style={{ color: '#60a5fa' }} />
+                <Database className="w-6 h-6 sm:w-7 sm:h-7" style={{ color: '#60a5fa' }} />
                 <div
                   className="absolute inset-0 rounded-2xl pointer-events-none"
                   style={{ boxShadow: 'inset 0 0 20px rgba(59,130,246,0.1)' }}
@@ -337,9 +383,9 @@ export const ConnectDataSourcePage: React.FC = () => {
             </div>
 
             {/* Heading */}
-            <div className="text-center space-y-2">
+            <div className="text-center space-y-2 px-2">
               <h2
-                className="text-4xl font-black tracking-tight"
+                className="text-2xl sm:text-3xl md:text-4xl font-black tracking-tight"
                 style={{
                   background: 'linear-gradient(90deg, #3b82f6 0%, #818cf8 50%, #60a5fa 100%)',
                   WebkitBackgroundClip: 'text',
@@ -349,8 +395,8 @@ export const ConnectDataSourcePage: React.FC = () => {
               >
                 Start Your Analysis
               </h2>
-              <p className="text-sm text-slate-400 leading-relaxed max-w-md mx-auto">
-                Upload a CSV or Excel file to let the AI analyze, visualize,<br />
+              <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-md mx-auto">
+                Upload a CSV or Excel file to let the AI analyze, visualize,<br className="hidden sm:inline" />
                 and extract insights from your data instantly.
               </p>
             </div>
@@ -421,50 +467,50 @@ export const ConnectDataSourcePage: React.FC = () => {
                       </div>
 
                       <div className="space-y-1">
-                        <div className="flex items-center justify-center gap-2">
-                          <h3 className="text-lg font-black text-white tracking-tight">
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 max-w-full px-2">
+                          <h3 className="text-base sm:text-lg font-black text-white tracking-tight truncate max-w-[240px] sm:max-w-md">
                             {uploadedInfo.name}
                           </h3>
-                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-extrabold font-mono">
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-extrabold font-mono shrink-0">
                             CONNECTED & READY
                           </span>
                         </div>
 
-                        <p className="text-xs text-emerald-300 font-medium">
+                        <p className="text-xs text-emerald-300 font-medium px-2">
                           File uploaded successfully! Redirecting to Data Health & Clean...
                         </p>
 
-                        <p className="text-xs text-slate-400 font-mono">
+                        <p className="text-xs text-slate-400 font-mono px-2 text-break-safe">
                           <span className="text-emerald-400 font-bold">{uploadedInfo.format}</span> • {uploadedInfo.size} • {uploadedInfo.rows.toLocaleString()} rows • {uploadedInfo.cols} columns
                         </p>
                       </div>
 
                       {/* PRIMARY NEXT STEP ACTIONS */}
-                      <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
+                      <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-2.5 sm:gap-3 mt-2 w-full max-w-md px-2">
                         <motion.button
                           whileHover={{ scale: 1.03, boxShadow: '0 0 24px rgba(6,182,212,0.45)' }}
                           whileTap={{ scale: 0.97 }}
-                          className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 via-cyan-500 to-purple-600 cursor-pointer shadow-lg shadow-cyan-500/25"
+                          className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 via-cyan-500 to-purple-600 cursor-pointer shadow-lg shadow-cyan-500/25"
                           onClick={() => navigate('/ask')}
                         >
                           <Sparkles className="w-4 h-4" />
-                          Proceed to Data Health & Clean
+                          <span>Proceed to Data Health & Clean</span>
                           <ArrowRight className="w-4 h-4 ml-0.5" />
                         </motion.button>
 
                         <motion.button
                           whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.97 }}
-                          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-200 border border-slate-700 bg-slate-900/90 hover:border-purple-500/40 cursor-pointer"
+                          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-200 border border-slate-700 bg-slate-900/90 hover:border-purple-500/40 cursor-pointer"
                           onClick={() => navigate('/dashboard')}
                         >
                           <Table className="w-3.5 h-3.5 text-purple-400" />
-                          Open Dashboard
+                          <span>Open Dashboard</span>
                         </motion.button>
                       </div>
 
                       {/* Secondary Dataset Actions */}
-                      <div className="flex items-center gap-4 mt-2">
+                      <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mt-2 px-2">
                         <button
                           onClick={() => {
                             setUploadStatus('idle');
@@ -473,17 +519,17 @@ export const ConnectDataSourcePage: React.FC = () => {
                           className="text-[11px] text-cyan-400 hover:text-cyan-300 underline flex items-center gap-1.5 cursor-pointer transition-colors font-medium"
                         >
                           <Upload className="w-3.5 h-3.5" />
-                          Upload a different dataset
+                          <span>Upload different dataset</span>
                         </button>
 
-                        <span className="text-slate-600 text-xs">•</span>
+                        <span className="text-slate-600 text-xs hidden sm:inline">•</span>
 
                         <button
                           onClick={handleRemoveDataset}
                           className="text-[11px] text-rose-400 hover:text-rose-300 underline flex items-center gap-1.5 cursor-pointer transition-colors font-medium"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                          Disconnect / Remove dataset
+                          <span>Disconnect / Remove</span>
                         </button>
                       </div>
                     </motion.div>

@@ -11,13 +11,10 @@ import {
   ZoomIn,
   ZoomOut,
   ArrowUpDown,
-  MapPin,
   Globe,
   Sliders,
   PieChart,
-  Grid,
-  Info,
-  CheckCircle2
+  Grid
 } from 'lucide-react';
 import type { DashboardWidget } from '@/types/dashboard';
 
@@ -66,11 +63,32 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
   const isLine = !isKPI && !isMap && !isBox && !isViolin && !isCorrHeatmap && !isHeatmap && !isFunnel && !isWaterfall && !isTreemap && !isGantt && !isStacked && !isGrouped && !isRadar && !isPie && !isHist && !isHorizontalBar && !isScatter && (rawType.includes('line') || rawType.includes('trend') || rawType.includes('time') || rawType.includes('area'));
 
   const rawChartData = useMemo(() => {
-    if (widget.spec?.data && Array.isArray(widget.spec.data) && widget.spec.data.length > 0) {
-      return widget.spec.data;
+    const candidate = widget.spec?.data || widget.data;
+    if (Array.isArray(candidate) && candidate.length > 0) {
+      return candidate;
     }
-    if (widget.data && Array.isArray(widget.data) && widget.data.length > 0) {
-      return widget.data;
+    // Handle object with labels / values or categories / data
+    if (candidate && typeof candidate === 'object') {
+      if (Array.isArray(candidate.labels) && Array.isArray(candidate.values)) {
+        return candidate.labels.map((lbl: any, idx: number) => ({
+          category: String(lbl),
+          value: Number(candidate.values[idx] ?? 0)
+        }));
+      }
+      if (Array.isArray(candidate.categories) && Array.isArray(candidate.series)) {
+        return candidate.categories.map((cat: any, idx: number) => ({
+          category: String(cat),
+          value: Number(candidate.series[0]?.data?.[idx] ?? candidate.series[idx] ?? 0)
+        }));
+      }
+      if (Array.isArray(candidate.x) && Array.isArray(candidate.y)) {
+        return candidate.x.map((xVal: any, idx: number) => ({
+          x: xVal,
+          y: candidate.y[idx],
+          category: String(xVal),
+          value: candidate.y[idx]
+        }));
+      }
     }
     return [];
   }, [widget]);
@@ -187,17 +205,20 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.92, y: 4 }}
           transition={{ duration: 0.12 }}
-          style={{ left: tooltipPos.x, top: Math.max(10, tooltipPos.y - 70) }}
-          className="absolute z-40 px-3.5 py-2.5 rounded-xl bg-slate-950/95 border border-cyan-500/60 shadow-[0_8px_30px_rgba(0,0,0,0.85)] text-[11px] font-mono text-slate-200 pointer-events-none backdrop-blur-xl min-w-[170px] max-w-[240px] space-y-1"
+          style={{ left: tooltipPos.x, top: Math.max(10, tooltipPos.y - 75) }}
+          className="absolute z-40 px-3.5 py-2.5 rounded-xl bg-slate-950/95 border border-cyan-500/70 shadow-[0_10px_35px_rgba(0,0,0,0.9),0_0_15px_rgba(6,182,212,0.25)] text-[11px] font-mono text-slate-200 pointer-events-none backdrop-blur-xl min-w-[185px] max-w-[260px] space-y-1.5"
         >
-          <div className="flex items-center justify-between border-b border-slate-800/80 pb-1">
-            <span className="text-slate-400 text-[10px] uppercase font-bold">{categoryTitle}:</span>
-            <span className="font-bold text-cyan-300 truncate max-w-[130px]">{categoryText}</span>
+          <div className="flex items-center justify-between border-b border-slate-800/90 pb-1">
+            <span className="text-cyan-400 text-[10px] uppercase font-bold flex items-center gap-1">
+              <Sparkles className="w-2.5 h-2.5 text-cyan-400" />
+              {categoryTitle}:
+            </span>
+            <span className="font-bold text-white truncate max-w-[130px]">{categoryText}</span>
           </div>
 
           <div className="flex items-center justify-between text-slate-300">
             <span className="text-slate-400 text-[10px]">{metricTitle}:</span>
-            <span className="font-bold text-white text-xs">{metricVal}</span>
+            <span className="font-bold text-cyan-300 text-xs">{metricVal}</span>
           </div>
 
           {countVal !== undefined && (
@@ -219,6 +240,11 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
               Entities: <span className="text-slate-300">{hoveredData.entities.slice(0, 3).join(', ')}</span>
             </div>
           )}
+
+          <div className="pt-1 border-t border-slate-800/80 text-[9px] text-slate-400 flex items-center justify-between">
+            <span className="text-slate-500">Pattern Focus:</span>
+            <span className="text-cyan-400 font-mono">Touch arrow / Click to select</span>
+          </div>
         </motion.div>
       </AnimatePresence>
     );
@@ -379,9 +405,19 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
         </div>
 
         {activeDatum && (
-          <div className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-900/90 border border-cyan-500/40 text-xs font-mono">
-            <span className="text-cyan-300 flex items-center gap-1.5 font-bold"><MapPin className="w-3.5 h-3.5" />{activeDatum.city}: {activeDatum.count} records ({activeDatum.formatted_value || activeDatum.value})</span>
-            <button onClick={() => setActiveDatum(null)} className="text-[10px] text-slate-400 hover:text-white cursor-pointer">Clear</button>
+          <div className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-900/95 border border-cyan-500/50 text-xs font-mono shadow-[0_4px_20px_rgba(6,182,212,0.25)] backdrop-blur-md mt-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <span className="text-cyan-300 font-bold">Selected Pattern:</span>
+              <span className="text-white font-semibold">{activeDatum.city || activeDatum.location}</span>
+              <span className="text-emerald-400 font-bold">({activeDatum.count ? `${activeDatum.count} records` : ''}{activeDatum.formatted_value ? ` • ${activeDatum.formatted_value}` : ''})</span>
+            </div>
+            <button 
+              onClick={() => setActiveDatum(null)} 
+              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold transition-all cursor-pointer border border-slate-700 hover:border-slate-600 shadow-sm"
+            >
+              Clear Selection
+            </button>
           </div>
         )}
       </div>
@@ -443,24 +479,38 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
               const yMed = padT + plotH - ((d.median - minVal) / span) * plotH;
               const yQ3 = padT + plotH - ((d.q3 - minVal) / span) * plotH;
               const yMax = padT + plotH - ((d.max - minVal) / span) * plotH;
+              const isHover = hoveredData?.category === d.category;
+              const isSel = activeDatum?.category === d.category;
 
               return (
                 <g 
                   key={i} 
-                  className="cursor-pointer" 
+                  className="cursor-pointer transition-all duration-150" 
                   onClick={() => handleSelectDatum(d)}
                   onPointerEnter={(e) => handlePointerMove(e, { ...d, metric_label: 'Median', formatted_value: `₹${d.median?.toLocaleString() || d.median}` })}
                   onPointerMove={(e) => handlePointerMove(e, { ...d, metric_label: 'Median', formatted_value: `₹${d.median?.toLocaleString() || d.median}` })} 
                   onPointerLeave={handlePointerLeave}
+                  opacity={isHover || isSel ? 1 : (hoveredData || activeDatum ? 0.35 : 0.9)}
                 >
-                  <line x1={cx} y1={yMin} x2={cx} y2={yMax} stroke="#6366f1" strokeWidth={1.5} />
-                  <line x1={cx - bWidth / 3} y1={yMin} x2={cx + bWidth / 3} y2={yMin} stroke="#6366f1" strokeWidth={1.5} />
-                  <line x1={cx - bWidth / 3} y1={yMax} x2={cx + bWidth / 3} y2={yMax} stroke="#6366f1" strokeWidth={1.5} />
+                  <line x1={cx} y1={yMin} x2={cx} y2={yMax} stroke={isSel ? '#f43f5e' : isHover ? '#22d3ee' : '#6366f1'} strokeWidth={isHover || isSel ? 2.5 : 1.5} />
+                  <line x1={cx - bWidth / 3} y1={yMin} x2={cx + bWidth / 3} y2={yMin} stroke={isSel ? '#f43f5e' : isHover ? '#22d3ee' : '#6366f1'} strokeWidth={isHover || isSel ? 2.5 : 1.5} />
+                  <line x1={cx - bWidth / 3} y1={yMax} x2={cx + bWidth / 3} y2={yMax} stroke={isSel ? '#f43f5e' : isHover ? '#22d3ee' : '#6366f1'} strokeWidth={isHover || isSel ? 2.5 : 1.5} />
 
-                  <rect x={cx - bWidth / 2} y={yQ3} width={bWidth} height={Math.max(yQ1 - yQ3, 4)} fill="#6366f1" fillOpacity={0.25} stroke="#818cf8" strokeWidth={1.5} rx={3} />
-                  <line x1={cx - bWidth / 2} y1={yMed} x2={cx + bWidth / 2} y2={yMed} stroke="#22d3ee" strokeWidth={2.5} />
+                  <rect 
+                    x={cx - bWidth / 2} 
+                    y={yQ3} 
+                    width={bWidth} 
+                    height={Math.max(yQ1 - yQ3, 4)} 
+                    fill={isSel ? '#f43f5e' : isHover ? '#06b6d4' : '#6366f1'} 
+                    fillOpacity={isHover ? 0.45 : isSel ? 0.5 : 0.25} 
+                    stroke={isSel ? '#f43f5e' : isHover ? '#22d3ee' : '#818cf8'} 
+                    strokeWidth={isHover || isSel ? 2.5 : 1.5} 
+                    filter={isHover ? 'drop-shadow(0 0 10px rgba(34, 211, 238, 0.8))' : isSel ? 'drop-shadow(0 0 12px rgba(244, 63, 94, 0.8))' : undefined}
+                    rx={3} 
+                  />
+                  <line x1={cx - bWidth / 2} y1={yMed} x2={cx + bWidth / 2} y2={yMed} stroke={isSel ? '#ffffff' : '#22d3ee'} strokeWidth={3} />
 
-                  <text x={cx} y={svgH - 15} textAnchor="middle" fill="#94a3b8" fontSize={9.5} fontWeight="bold" fontFamily="sans-serif">{d.category}</text>
+                  <text x={cx} y={svgH - 15} textAnchor="middle" fill={isHover || isSel ? '#ffffff' : '#94a3b8'} fontSize={9.5} fontWeight={isHover || isSel ? 'bold' : 'normal'} fontFamily="sans-serif">{d.category}</text>
                 </g>
               );
             })}
@@ -468,6 +518,23 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
 
           {renderUniversalTooltip()}
         </div>
+
+        {activeDatum && (
+          <div className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-900/95 border border-cyan-500/50 text-xs font-mono shadow-[0_4px_20px_rgba(6,182,212,0.25)] backdrop-blur-md mt-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <span className="text-cyan-300 font-bold">Selected Pattern:</span>
+              <span className="text-white font-semibold">{activeDatum.category}</span>
+              <span className="text-emerald-400 font-bold">({activeDatum.formatted_value || `Median: ₹${activeDatum.median?.toLocaleString() || activeDatum.median}`})</span>
+            </div>
+            <button 
+              onClick={() => setActiveDatum(null)} 
+              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold transition-all cursor-pointer border border-slate-700 hover:border-slate-600 shadow-sm"
+            >
+              Clear Selection
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -510,16 +577,32 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
               const val = Number(d.value || 0);
               const opacity = Math.max(0.15, Math.min(Math.abs(val), 1));
               const fill = val >= 0 ? '#06b6d4' : '#f43f5e';
+              const pairName = `${d.y} ↔ ${d.x}`;
+              const isHover = hoveredData?.category === pairName;
+              const isSel = activeDatum?.category === pairName;
 
               return (
                 <g 
                   key={i} 
-                  className="cursor-pointer" 
-                  onPointerEnter={(e) => handlePointerMove(e, { ...d, category: `${d.y} ↔ ${d.x}`, metric_label: 'Coefficient', formatted_value: `${d.value}` })}
-                  onPointerMove={(e) => handlePointerMove(e, { ...d, category: `${d.y} ↔ ${d.x}`, metric_label: 'Coefficient', formatted_value: `${d.value}` })} 
+                  className="cursor-pointer transition-all duration-150" 
+                  onClick={() => handleSelectDatum({ ...d, category: pairName, metric_label: 'Correlation', formatted_value: `${d.value}` })}
+                  onPointerEnter={(e) => handlePointerMove(e, { ...d, category: pairName, metric_label: 'Coefficient', formatted_value: `${d.value}` })}
+                  onPointerMove={(e) => handlePointerMove(e, { ...d, category: pairName, metric_label: 'Coefficient', formatted_value: `${d.value}` })} 
                   onPointerLeave={handlePointerLeave}
+                  opacity={isHover || isSel ? 1 : (hoveredData || activeDatum ? 0.35 : 0.9)}
                 >
-                  <rect x={xPos} y={yPos} width={cellW - 2} height={cellH - 2} fill={fill} fillOpacity={opacity} stroke="#070b16" strokeWidth={1.5} rx={3} />
+                  <rect 
+                    x={xPos} 
+                    y={yPos} 
+                    width={cellW - 2} 
+                    height={cellH - 2} 
+                    fill={fill} 
+                    fillOpacity={isHover || isSel ? 1 : opacity} 
+                    stroke={isSel ? '#f43f5e' : isHover ? '#22d3ee' : '#070b16'} 
+                    strokeWidth={isHover || isSel ? 2.5 : 1.5} 
+                    filter={isHover ? 'drop-shadow(0 0 10px rgba(34, 211, 238, 0.8))' : isSel ? 'drop-shadow(0 0 12px rgba(244, 63, 94, 0.8))' : undefined}
+                    rx={3} 
+                  />
                   <text x={xPos + cellW / 2} y={yPos + cellH / 2 + 3} textAnchor="middle" fill="#ffffff" fontSize={10} fontWeight="bold" fontFamily="monospace">{d.value}</text>
                 </g>
               );
@@ -535,6 +618,23 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
 
           {renderUniversalTooltip()}
         </div>
+
+        {activeDatum && (
+          <div className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-900/95 border border-cyan-500/50 text-xs font-mono shadow-[0_4px_20px_rgba(6,182,212,0.25)] backdrop-blur-md mt-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <span className="text-cyan-300 font-bold">Selected Pattern:</span>
+              <span className="text-white font-semibold">{activeDatum.category}</span>
+              <span className="text-emerald-400 font-bold">({activeDatum.formatted_value || activeDatum.value})</span>
+            </div>
+            <button 
+              onClick={() => setActiveDatum(null)} 
+              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold transition-all cursor-pointer border border-slate-700 hover:border-slate-600 shadow-sm"
+            >
+              Clear Selection
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -603,11 +703,12 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
                   key={i}
                   d={slice.pathData}
                   fill={slice.color}
-                  stroke="#070b16"
-                  strokeWidth={2}
+                  stroke={isSel ? '#f43f5e' : isHover ? '#22d3ee' : '#070b16'}
+                  strokeWidth={isSel ? 3.5 : isHover ? 2.5 : 1.5}
                   className="cursor-pointer transition-all duration-200"
-                  opacity={isHover || isSel ? 1 : (hoveredData || activeDatum ? 0.6 : 0.88)}
-                  transform={isHover ? `scale(1.04) translate(-${center * 0.04}, -${center * 0.04})` : undefined}
+                  opacity={isHover || isSel ? 1 : (hoveredData || activeDatum ? 0.35 : 0.9)}
+                  transform={isHover || isSel ? `scale(1.05) translate(-${center * 0.05}, -${center * 0.05})` : undefined}
+                  filter={isHover ? 'drop-shadow(0 0 10px rgba(34, 211, 238, 0.85))' : isSel ? 'drop-shadow(0 0 12px rgba(244, 63, 94, 0.85))' : undefined}
                   onClick={() => handleSelectDatum(slice)}
                   onPointerEnter={(e) => handlePointerMove(e, slice)}
                   onPointerMove={(e) => handlePointerMove(e, slice)}
@@ -621,29 +722,43 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
           </svg>
 
           <div className="flex flex-col gap-1 max-h-56 overflow-y-auto pr-1 scrollbar-thin">
-            {slices.map((slice: any, i: number) => (
-              <div 
-                key={i} 
-                onClick={() => handleSelectDatum(slice)}
-                onPointerEnter={(e) => handlePointerMove(e, slice)}
-                onPointerMove={(e) => handlePointerMove(e, slice)} 
-                onPointerLeave={handlePointerLeave} 
-                className={`flex items-center gap-2 text-xs font-mono p-1 rounded hover:bg-slate-900 cursor-pointer ${activeDatum?.category === slice.category ? 'bg-slate-900 border border-cyan-500/40' : ''}`}
-              >
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }} />
-                <span className="text-slate-300 truncate max-w-[110px]">{slice.category}</span>
-                <span className="text-cyan-400 font-bold ml-auto">{slice.percentage}</span>
-              </div>
-            ))}
+            {slices.map((slice: any, i: number) => {
+              const isItemSel = activeDatum?.category === slice.category;
+              const isItemHover = hoveredData?.category === slice.category;
+              return (
+                <div 
+                  key={i} 
+                  onClick={() => handleSelectDatum(slice)}
+                  onPointerEnter={(e) => handlePointerMove(e, slice)}
+                  onPointerMove={(e) => handlePointerMove(e, slice)} 
+                  onPointerLeave={handlePointerLeave} 
+                  className={`flex items-center gap-2 text-xs font-mono p-1.5 rounded-lg transition-all cursor-pointer ${isItemSel ? 'bg-slate-900 border border-rose-500/60 shadow-sm' : isItemHover ? 'bg-slate-900/80 border border-cyan-500/40' : 'hover:bg-slate-900/60'}`}
+                >
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: slice.color }} />
+                  <span className={`truncate max-w-[110px] ${isItemSel ? 'text-white font-bold' : 'text-slate-300'}`}>{slice.category}</span>
+                  <span className="text-cyan-400 font-bold ml-auto">{slice.percentage}</span>
+                </div>
+              );
+            })}
           </div>
 
           {renderUniversalTooltip()}
         </div>
 
         {activeDatum && (
-          <div className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-900/90 border border-cyan-500/40 text-xs font-mono">
-            <span className="text-cyan-300 flex items-center gap-1.5 font-bold"><CheckCircle2 className="w-3.5 h-3.5" />{activeDatum.category}: {activeDatum.value} ({activeDatum.percentage})</span>
-            <button onClick={() => setActiveDatum(null)} className="text-[10px] text-slate-400 hover:text-white cursor-pointer">Clear</button>
+          <div className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-900/95 border border-cyan-500/50 text-xs font-mono shadow-[0_4px_20px_rgba(6,182,212,0.25)] backdrop-blur-md mt-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <span className="text-cyan-300 font-bold">Selected Pattern:</span>
+              <span className="text-white font-semibold">{activeDatum.category || activeDatum.name}</span>
+              <span className="text-emerald-400 font-bold">({activeDatum.value} • {activeDatum.percentage})</span>
+            </div>
+            <button 
+              onClick={() => setActiveDatum(null)} 
+              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold transition-all cursor-pointer border border-slate-700 hover:border-slate-600 shadow-sm"
+            >
+              Clear Selection
+            </button>
           </div>
         )}
       </div>
@@ -700,20 +815,22 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
             {sData.map((d: any, i: number) => {
               const xPos = padL + ((Number(d.x) - minX) / Math.max(maxX - minX, 1)) * chartW;
               const yPos = padT + chartH - ((Number(d.y) - minY) / Math.max(maxY - minY, 1)) * chartH;
-              const isHover = hoveredData?.label === d.label;
+              const isHover = hoveredData?.label === d.label || hoveredData?.category === d.label;
+              const isSel = activeDatum?.label === d.label || activeDatum?.category === d.label;
 
               return (
                 <circle
                   key={i}
                   cx={xPos}
                   cy={yPos}
-                  r={isHover ? 7 : 4.5}
-                  fill={isHover ? '#22d3ee' : '#06b6d4'}
-                  stroke="#070b16"
-                  strokeWidth={1.5}
-                  opacity={0.88}
+                  r={isHover ? 7.5 : isSel ? 7 : 4.5}
+                  fill={isSel ? '#f43f5e' : isHover ? '#ffffff' : '#06b6d4'}
+                  stroke={isHover ? '#22d3ee' : isSel ? '#f43f5e' : '#070b16'}
+                  strokeWidth={isHover || isSel ? 2.5 : 1.5}
+                  opacity={isHover || isSel ? 1 : (hoveredData || activeDatum ? 0.35 : 0.88)}
+                  filter={isHover ? 'drop-shadow(0 0 10px rgba(34, 211, 238, 0.85))' : isSel ? 'drop-shadow(0 0 12px rgba(244, 63, 94, 0.85))' : undefined}
                   className="cursor-pointer transition-all duration-150"
-                  onClick={() => handleSelectDatum(d)}
+                  onClick={() => handleSelectDatum({ ...d, category: d.label, formatted_value: d.formatted_y || `(${d.x}, ${d.y})` })}
                   onPointerEnter={(e) => handlePointerMove(e, { ...d, category: d.label, metric_label: d.y_label || 'Y', formatted_value: d.formatted_y || `${d.y}` })}
                   onPointerMove={(e) => handlePointerMove(e, { ...d, category: d.label, metric_label: d.y_label || 'Y', formatted_value: d.formatted_y || `${d.y}` })}
                   onPointerLeave={handlePointerLeave}
@@ -724,6 +841,23 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
 
           {renderUniversalTooltip()}
         </div>
+
+        {activeDatum && (
+          <div className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-900/95 border border-cyan-500/50 text-xs font-mono shadow-[0_4px_20px_rgba(6,182,212,0.25)] backdrop-blur-md mt-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+              <span className="text-cyan-300 font-bold">Selected Pattern:</span>
+              <span className="text-white font-semibold">{activeDatum.label || activeDatum.category}</span>
+              <span className="text-emerald-400 font-bold">({activeDatum.formatted_value || `X: ${activeDatum.x} • Y: ${activeDatum.y}`})</span>
+            </div>
+            <button 
+              onClick={() => setActiveDatum(null)} 
+              className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold transition-all cursor-pointer border border-slate-700 hover:border-slate-600 shadow-sm"
+            >
+              Clear Selection
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -790,7 +924,7 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
               return (
                 <g 
                   key={i} 
-                  className="cursor-pointer" 
+                  className="cursor-pointer transition-transform duration-150" 
                   onClick={() => handleSelectDatum(d)}
                   onPointerEnter={(e) => handlePointerMove(e, d)}
                   onPointerMove={(e) => handlePointerMove(e, d)} 
@@ -802,12 +936,22 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
                     width={barW}
                     height={Math.max(barH, 2)}
                     fill={THEME_COLORS[i % THEME_COLORS.length]}
-                    fillOpacity={isHover || isSel ? 1 : (hoveredData || activeDatum ? 0.6 : 0.85)}
-                    stroke="#818cf8"
-                    strokeWidth={isSel ? 2 : 1}
+                    fillOpacity={isHover ? 1 : isSel ? 1 : (hoveredData || activeDatum ? 0.35 : 0.88)}
+                    stroke={isSel ? '#f43f5e' : isHover ? '#22d3ee' : '#6366f1'}
+                    strokeWidth={isSel ? 3 : isHover ? 2.5 : 1}
+                    filter={isHover ? 'drop-shadow(0 0 10px rgba(34, 211, 238, 0.8))' : isSel ? 'drop-shadow(0 0 12px rgba(244, 63, 94, 0.8))' : undefined}
                     rx={4}
+                    className="transition-all duration-150"
                   />
-                  <text x={xPos + barW / 2} y={svgH - 15} textAnchor="middle" fill="#94a3b8" fontSize={9.5} fontWeight="bold" fontFamily="sans-serif">
+                  <text 
+                    x={xPos + barW / 2} 
+                    y={svgH - 15} 
+                    textAnchor="middle" 
+                    fill={isHover || isSel ? '#ffffff' : '#94a3b8'} 
+                    fontSize={9.5} 
+                    fontWeight={isHover || isSel ? 'bold' : 'normal'} 
+                    fontFamily="sans-serif"
+                  >
                     {String(d.category || d.bin_range || d.date || `P${i + 1}`)}
                   </text>
                 </g>
@@ -825,26 +969,47 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
                 const pathD = points.reduce((acc: string, p: any, idx: number) => idx === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`, '');
                 const areaD = `${pathD} L ${points[points.length - 1].x} ${padT + chartH} L ${points[0].x} ${padT + chartH} Z`;
 
+                const hoveredPoint = points.find((p: any) => p.d.date === hoveredData?.date || p.d.category === hoveredData?.category);
+
                 return (
                   <>
+                    {/* Hover vertical alignment crosshair guide line */}
+                    {hoveredPoint && (
+                      <line
+                        x1={hoveredPoint.x}
+                        y1={padT}
+                        x2={hoveredPoint.x}
+                        y2={padT + chartH}
+                        stroke="#22d3ee"
+                        strokeDasharray="3 3"
+                        strokeWidth={1.5}
+                        opacity={0.8}
+                      />
+                    )}
                     <path d={areaD} fill="#06b6d4" fillOpacity={0.15} />
                     <path d={pathD} fill="none" stroke="#06b6d4" strokeWidth={2.5} />
-                    {points.map((p: any, idx: number) => (
-                      <circle
-                        key={idx}
-                        cx={p.x}
-                        cy={p.y}
-                        r={hoveredData?.date === p.d.date ? 6.5 : 4.5}
-                        fill="#22d3ee"
-                        stroke="#070b16"
-                        strokeWidth={1.5}
-                        className="cursor-pointer transition-all duration-150"
-                        onClick={() => handleSelectDatum(p.d)}
-                        onPointerEnter={(e) => handlePointerMove(e, p.d)}
-                        onPointerMove={(e) => handlePointerMove(e, p.d)}
-                        onPointerLeave={handlePointerLeave}
-                      />
-                    ))}
+                    {points.map((p: any, idx: number) => {
+                      const isHover = hoveredData?.date === p.d.date || hoveredData?.category === p.d.category;
+                      const isSel = activeDatum?.date === p.d.date || activeDatum?.category === p.d.category;
+
+                      return (
+                        <circle
+                          key={idx}
+                          cx={p.x}
+                          cy={p.y}
+                          r={isHover ? 7.5 : isSel ? 7 : 4.5}
+                          fill={isSel ? '#f43f5e' : isHover ? '#ffffff' : '#22d3ee'}
+                          stroke={isHover ? '#22d3ee' : '#070b16'}
+                          strokeWidth={isHover || isSel ? 3 : 1.5}
+                          filter={isHover ? 'drop-shadow(0 0 10px rgba(34, 211, 238, 0.9))' : isSel ? 'drop-shadow(0 0 12px rgba(244, 63, 94, 0.9))' : undefined}
+                          className="cursor-pointer transition-all duration-150"
+                          onClick={() => handleSelectDatum(p.d)}
+                          onPointerEnter={(e) => handlePointerMove(e, p.d)}
+                          onPointerMove={(e) => handlePointerMove(e, p.d)}
+                          onPointerLeave={handlePointerLeave}
+                        />
+                      );
+                    })}
                   </>
                 );
               })()}
@@ -856,9 +1021,19 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
       </div>
 
       {activeDatum && (
-        <div className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-900/90 border border-cyan-500/40 text-xs font-mono">
-          <span className="text-cyan-300 flex items-center gap-1.5 font-bold"><Info className="w-3.5 h-3.5" />Selected: {activeDatum.category || activeDatum.name || activeDatum.date} — {activeDatum.formatted_value || activeDatum.value} {activeDatum.percentage ? `(${activeDatum.percentage})` : ''}</span>
-          <button onClick={() => setActiveDatum(null)} className="text-[10px] text-slate-400 hover:text-white cursor-pointer">Clear</button>
+        <div className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-900/95 border border-cyan-500/50 text-xs font-mono shadow-[0_4px_20px_rgba(6,182,212,0.25)] backdrop-blur-md mt-2">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+            <span className="text-cyan-300 font-bold">Selected Pattern:</span>
+            <span className="text-white font-semibold">{activeDatum.category || activeDatum.name || activeDatum.city || activeDatum.label || activeDatum.date}</span>
+            <span className="text-emerald-400 font-bold">({activeDatum.formatted_value || (activeDatum.value !== undefined ? (typeof activeDatum.value === 'number' && activeDatum.value > 1000 ? `₹${activeDatum.value.toLocaleString()}` : `${activeDatum.value}`) : '')}{activeDatum.percentage ? ` • ${activeDatum.percentage}` : ''})</span>
+          </div>
+          <button 
+            onClick={() => setActiveDatum(null)} 
+            className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-semibold transition-all cursor-pointer border border-slate-700 hover:border-slate-600 shadow-sm"
+          >
+            Clear Selection
+          </button>
         </div>
       )}
     </div>
