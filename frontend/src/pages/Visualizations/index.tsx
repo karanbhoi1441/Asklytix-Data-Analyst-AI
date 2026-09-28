@@ -326,7 +326,7 @@ export const VisualizationsPage: React.FC = () => {
               e.preventDefault();
               handleGenerate();
             }}
-            className="flex items-center gap-2 bg-slate-950/90 border border-cyan-500/30 rounded-xl p-2 shadow-inner focus-within:border-cyan-500/70 transition-all"
+            className="flex items-center gap-2 bg-slate-950/40 backdrop-blur-md border border-cyan-500/30 rounded-xl p-2 shadow-inner focus-within:border-cyan-500/70 transition-all"
           >
             <div className="p-2 text-cyan-400">
               <Sparkles className="w-4 h-4" />
@@ -362,7 +362,7 @@ export const VisualizationsPage: React.FC = () => {
                     key={idx}
                     onClick={() => handleGenerate(sug.prompt)}
                     disabled={isGenerating}
-                    className="px-2.5 py-1 rounded-lg bg-slate-900/90 hover:bg-cyan-950/60 border border-slate-800 hover:border-cyan-500/40 text-slate-300 hover:text-cyan-300 text-[11px] font-mono transition-all cursor-pointer truncate max-w-[320px] text-left"
+                    className="px-2.5 py-1 rounded-lg bg-slate-900/50 backdrop-blur-sm hover:bg-cyan-950/60 border border-slate-800 hover:border-cyan-500/40 text-slate-300 hover:text-cyan-300 text-[11px] font-mono transition-all cursor-pointer truncate max-w-[320px] text-left"
                     title={sug.prompt}
                   >
                     ✨ {sug.title}
@@ -408,7 +408,7 @@ export const VisualizationsPage: React.FC = () => {
               return (
                 <div
                   key={item.id || idx}
-                  className="bg-[#0b101f]/95 border border-slate-800/90 hover:border-cyan-500/40 rounded-2xl p-4 shadow-xl backdrop-blur-xl flex flex-col justify-between min-h-[420px] transition-all group"
+                  className="bg-[#0a1226]/45 border border-slate-800/60 hover:border-cyan-500/40 rounded-2xl p-4 shadow-xl backdrop-blur-xl flex flex-col justify-between min-h-[420px] transition-all group"
                 >
                   {/* Top Bar for Card */}
                   <div className="flex items-start justify-between gap-3 border-b border-slate-800/80 pb-3">
@@ -458,7 +458,7 @@ export const VisualizationsPage: React.FC = () => {
                   </div>
 
                   {/* Live Interactive Visualization Body */}
-                  <div className="flex-1 my-3 flex items-center justify-center bg-[#070b16] rounded-xl border border-slate-800/60 overflow-hidden relative min-h-[300px]">
+                  <div className="flex-1 my-3 flex items-center justify-center bg-[#060b18]/40 backdrop-blur-md rounded-xl border border-slate-800/50 overflow-hidden relative min-h-[300px]">
                     <LiveVisualizationRenderer
                       widget={widget}
                       datasetName={selectedDataset?.name || 'Active Dataset'}
@@ -560,7 +560,7 @@ export const VisualizationsPage: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative max-w-5xl w-full bg-[#080d1a] border border-cyan-500/40 rounded-2xl p-4 z-10 shadow-2xl space-y-3"
+              className="relative max-w-5xl w-full bg-[#080d1a]/85 backdrop-blur-2xl border border-cyan-500/40 rounded-2xl p-4 z-10 shadow-2xl space-y-3"
             >
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div>

@@ -618,7 +618,7 @@ export const DashboardPage: React.FC = () => {
             initial={{ opacity: 0, y: -12, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -12, scale: 0.95 }}
-            className="fixed top-5 right-5 z-50 px-4 py-3 rounded-2xl bg-[#08152c]/95 border border-cyan-500/60 shadow-[0_0_30px_rgba(6,182,212,0.45)] text-white text-xs flex items-center gap-3 backdrop-blur-2xl"
+            className="fixed top-5 right-5 z-50 px-4 py-3 rounded-2xl bg-[#08152c]/80 border border-cyan-500/60 shadow-[0_0_30px_rgba(6,182,212,0.45)] text-white text-xs flex items-center gap-3 backdrop-blur-2xl"
           >
             <div className="p-1 rounded-lg bg-cyan-500/20 text-cyan-400">
               <CheckCircle2 className="w-4 h-4" />
@@ -636,7 +636,7 @@ export const DashboardPage: React.FC = () => {
         
         {/* ── LEFT COLUMN: Visualization Canvas (7 Cols) ── */}
         <div className="lg:col-span-7 space-y-3 w-full">
-          <div className="bg-[#0b101f]/95 border border-slate-800/90 hover:border-slate-700/80 rounded-2xl p-3 sm:p-5 shadow-2xl backdrop-blur-xl flex flex-col justify-between min-h-[440px] sm:min-h-[520px] lg:min-h-[580px] transition-all">
+          <div className="bg-[#0a1226]/45 border border-slate-800/60 hover:border-slate-700/80 rounded-2xl p-3 sm:p-5 shadow-2xl backdrop-blur-xl flex flex-col justify-between min-h-[440px] sm:min-h-[520px] lg:min-h-[580px] transition-all">
             
             {/* Canvas Header */}
             <div className="flex items-center justify-between border-b border-slate-800/80 pb-3 flex-wrap gap-2">
@@ -680,7 +680,7 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             {/* Canvas Main Visualization Body */}
-            <div className="relative my-3 sm:my-4 flex-1 flex flex-col items-center justify-center bg-[#070b16] rounded-xl border border-slate-800/60 p-2 sm:p-4 overflow-hidden min-h-[300px] sm:min-h-[380px] lg:min-h-[440px]">
+            <div className="relative my-3 sm:my-4 flex-1 flex flex-col items-center justify-center bg-[#060b18]/40 backdrop-blur-md rounded-xl border border-slate-800/50 p-2 sm:p-4 overflow-hidden min-h-[300px] sm:min-h-[380px] lg:min-h-[440px]">
               
               {/* Overlay Interactive Plotly / Sandbox Controls */}
               {currentImageSrc && (
@@ -785,7 +785,7 @@ export const DashboardPage: React.FC = () => {
 
         {/* ── RIGHT COLUMN: Data Analyst AI Chat Panel (5 Cols) ── */}
         <div className="lg:col-span-5 space-y-3 w-full">
-          <div className="bg-[#0b101f]/95 border border-slate-800/90 hover:border-slate-700/80 rounded-2xl p-3 sm:p-4 shadow-2xl backdrop-blur-xl flex flex-col justify-between h-[500px] sm:h-[540px] lg:h-[580px]">
+          <div className="bg-[#0a1226]/45 border border-slate-800/60 hover:border-slate-700/80 rounded-2xl p-3 sm:p-4 shadow-2xl backdrop-blur-xl flex flex-col justify-between h-[500px] sm:h-[540px] lg:h-[580px]">
             
             {/* Chat Panel Header */}
             <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
@@ -813,7 +813,7 @@ export const DashboardPage: React.FC = () => {
                   initial={{ opacity: 0, y: -6, scale: 0.98 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                  className="p-3 rounded-2xl bg-[#060a16] border border-amber-500/40 shadow-2xl space-y-2 my-2 z-20 backdrop-blur-xl"
+                  className="p-3 rounded-2xl bg-[#060a16]/70 border border-amber-500/40 shadow-2xl space-y-2 my-2 z-20 backdrop-blur-2xl"
                 >
                   <div className="flex items-center justify-between text-[11px] font-bold text-amber-300 font-mono pb-1 border-b border-slate-800">
                     <div className="flex items-center gap-1.5">
@@ -864,7 +864,7 @@ export const DashboardPage: React.FC = () => {
                               setIsSuggestVisualsOpen(false);
                               handleSendQuestion(sug.prompt);
                             }}
-                            className="w-full flex items-start gap-2.5 p-2 rounded-xl bg-[#090f20] hover:bg-cyan-950/40 border border-slate-800/90 hover:border-cyan-500/40 text-left transition-all cursor-pointer group shadow-sm"
+                            className="w-full flex items-start gap-2.5 p-2 rounded-xl bg-[#090f20]/60 backdrop-blur-sm hover:bg-cyan-950/40 border border-slate-800/70 hover:border-cyan-500/40 text-left transition-all cursor-pointer group shadow-sm"
                           >
                             {/* Chart Icon */}
                             <div className="p-1.5 rounded-lg bg-slate-900 border border-slate-800 text-cyan-400 group-hover:text-cyan-300 group-hover:border-cyan-500/40 shrink-0 mt-0.5">
@@ -937,7 +937,7 @@ export const DashboardPage: React.FC = () => {
 
                       <div className="flex-1 space-y-2 max-w-[90%]">
                         {/* Summary insight badge bubble */}
-                        <div className="p-2.5 rounded-xl bg-[#0e1628] border border-slate-800 text-xs text-slate-200 font-mono leading-relaxed">
+                        <div className="p-2.5 rounded-xl bg-[#0e1628]/60 backdrop-blur-sm border border-slate-800/70 text-xs text-slate-200 font-mono leading-relaxed">
                           {msg.text}
                         </div>
 
@@ -1020,7 +1020,7 @@ export const DashboardPage: React.FC = () => {
 
             {/* Chat Input Bar at Bottom (Responsive for small & big screens) */}
             <div className="space-y-2 pt-2 border-t border-slate-800/80">
-              <div className="relative flex items-center bg-[#070b16] border border-slate-800 focus-within:border-cyan-500/80 rounded-xl p-1 shadow-inner min-w-0">
+              <div className="relative flex items-center bg-[#060b18]/50 backdrop-blur-md border border-slate-800 focus-within:border-cyan-500/80 rounded-xl p-1 shadow-inner min-w-0">
                 <input
                   type="text"
                   value={promptInput}
@@ -1090,7 +1090,7 @@ export const DashboardPage: React.FC = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="relative max-w-5xl w-full bg-[#080d1a] border border-cyan-500/40 rounded-2xl p-4 z-10 shadow-2xl space-y-3"
+              className="relative max-w-5xl w-full bg-[#080d1a]/85 backdrop-blur-2xl border border-cyan-500/40 rounded-2xl p-4 z-10 shadow-2xl space-y-3"
             >
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <h3 className="text-sm font-bold text-white font-mono">

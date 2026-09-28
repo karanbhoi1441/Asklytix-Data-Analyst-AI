@@ -32,7 +32,7 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-[#040711]/85 backdrop-blur-xl border-b border-slate-800/80 px-4 sm:px-6 py-3 transition-all duration-200">
+    <header className="sticky top-0 z-40 w-full bg-[#040711]/60 backdrop-blur-xl border-b border-slate-800/60 px-4 sm:px-6 py-3 transition-all duration-200">
       <div className="flex items-center justify-between gap-4 max-w-[1920px] mx-auto">
         {/* Left Section: Mobile Menu Toggle + Breadcrumbs & Page Title */}
         <div className="flex items-center gap-3 min-w-0">

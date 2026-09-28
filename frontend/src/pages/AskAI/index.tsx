@@ -873,7 +873,7 @@ export const AskAIPage: React.FC = () => {
       ════════════════════════════════════════════════════════════════════════ */}
       <Card
         variant="glass"
-        className="p-4 sm:p-5 border-cyan-500/30 shadow-2xl relative overflow-hidden bg-gradient-to-r from-slate-950 via-[#0a1628] to-slate-950"
+        className="p-4 sm:p-5 border-cyan-500/30 shadow-2xl relative overflow-hidden bg-gradient-to-r from-slate-950/45 via-[#0a1628]/45 to-slate-950/45 backdrop-blur-xl"
       >
         {/* Glow effect */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -1010,7 +1010,7 @@ export const AskAIPage: React.FC = () => {
           2. WORKSPACE TAB SELECTOR: DATA SHOWING | DATA CLEAN | DATA PROCESSING
       ════════════════════════════════════════════════════════════════════════ */}
       <div className="flex items-center justify-between gap-4 border-b border-slate-800 pb-3 flex-wrap">
-        <div className="flex items-center gap-2 bg-slate-950/80 p-1 rounded-2xl border border-slate-800">
+        <div className="flex items-center gap-2 bg-slate-950/40 backdrop-blur-md p-1 rounded-2xl border border-slate-800/60">
           
           {/* TAB 1: AI ASSISTANT & DATA */}
           <button
@@ -1135,7 +1135,7 @@ export const AskAIPage: React.FC = () => {
               {/* Scrollable Data Table with Sticky Header & Smooth Scrolling */}
               <div className="overflow-x-auto overflow-y-auto max-h-[440px] rounded-xl border border-slate-800 scrollbar-thin">
                 <table className="w-full text-left text-xs border-collapse">
-                  <thead className="sticky top-0 z-10 bg-[#090f1f] shadow-md border-b border-slate-800">
+                  <thead className="sticky top-0 z-10 bg-[#090f1f]/85 backdrop-blur-md shadow-md border-b border-slate-800">
                     <tr className="text-slate-400 font-semibold">
                       {columns.slice(0, 10).map((col) => (
                         <th
@@ -1148,7 +1148,7 @@ export const AskAIPage: React.FC = () => {
                               setSortOrder('asc');
                             }
                           }}
-                          className="px-3.5 py-3 cursor-pointer hover:text-white transition-colors select-none font-mono bg-[#090f1f]"
+                          className="px-3.5 py-3 cursor-pointer hover:text-white transition-colors select-none font-mono bg-[#090f1f]/85"
                         >
                           <div className="flex items-center gap-1.5">
                             <span>{col}</span>

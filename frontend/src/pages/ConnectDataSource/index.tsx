@@ -5,7 +5,7 @@ import {
   Database, MessageSquare, LogOut,
   CloudUpload, FolderOpen,
   ChevronDown, CheckCircle2, AlertCircle, Loader2,
-  Lock, Layers, Upload, ArrowRight, Table, Sparkles, Trash2
+  Lock, Layers, Upload, Trash2
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useDatasets } from '@/hooks/useDatasets';
@@ -166,8 +166,8 @@ export const ConnectDataSourcePage: React.FC = () => {
 
       {/* ── DESKTOP LEFT SIDEBAR (Hidden on mobile < md) ───────────────── */}
       <aside
-        className="hidden md:flex w-[190px] lg:w-[220px] shrink-0 flex-col border-r justify-between"
-        style={{ background: '#060b17', borderColor: '#1a2744' }}
+        className="hidden md:flex w-[190px] lg:w-[220px] shrink-0 flex-col border-r justify-between backdrop-blur-xl"
+        style={{ background: 'rgba(6, 11, 23, 0.75)', borderColor: 'rgba(30, 58, 138, 0.3)' }}
       >
         {/* Top Logo & Branding */}
         <div>
@@ -295,10 +295,10 @@ export const ConnectDataSourcePage: React.FC = () => {
       {/* ── MAIN AREA ─────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 w-full">
 
-        {/* ── TOP HEADER (Responsive for all screen sizes) ─────────────── */}
+        {/* ── TOP HEADER (Transparent for all screen sizes) ─────────────── */}
         <header
-          className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b shrink-0 z-20 backdrop-blur-md"
-          style={{ borderColor: '#1a2744', background: 'rgba(7, 13, 26, 0.94)' }}
+          className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b shrink-0 z-20 backdrop-blur-sm"
+          style={{ borderColor: 'rgba(30, 58, 138, 0.25)', background: 'transparent' }}
         >
           {/* Mobile Brand Logo & Header */}
           <div className="flex items-center gap-2.5 min-w-0">
@@ -401,7 +401,7 @@ export const ConnectDataSourcePage: React.FC = () => {
               </p>
             </div>
 
-            {/* ── UPLOAD DROPZONE CONTAINER ───────────────────────────── */}
+            {/* ── UPLOAD DROPZONE CONTAINER (TRANSPARENT GLASS) ───────────────────── */}
             <motion.div
               onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
               onDragLeave={() => setIsDragOver(false)}
@@ -410,17 +410,16 @@ export const ConnectDataSourcePage: React.FC = () => {
                 if (uploadStatus !== 'uploading' && uploadStatus !== 'success') inputRef.current?.click();
               }}
               animate={isDragOver ? { scale: 1.01 } : { scale: 1 }}
-              className="relative rounded-2xl overflow-hidden select-none"
+              className="relative rounded-2xl overflow-hidden select-none backdrop-blur-md transition-all duration-300"
               style={{
-                background: isDragOver ? '#0a1e3d' : '#070f1e',
-                border: `1.5px dashed ${uploadStatus === 'success' ? '#10b981' : isDragOver ? '#3b82f6' : '#1e3358'}`,
+                background: isDragOver ? 'rgba(30, 58, 138, 0.22)' : 'rgba(8, 16, 32, 0.28)',
+                border: `1.5px dashed ${uploadStatus === 'success' ? '#10b981' : isDragOver ? '#38bdf8' : 'rgba(56, 189, 248, 0.45)'}`,
                 boxShadow: uploadStatus === 'success'
-                  ? '0 0 25px rgba(16,185,129,0.15), inset 0 0 25px rgba(16,185,129,0.05)'
+                  ? '0 0 30px rgba(16,185,129,0.18), inset 0 0 30px rgba(16,185,129,0.05)'
                   : isDragOver
-                    ? '0 0 30px rgba(59,130,246,0.2), inset 0 0 30px rgba(59,130,246,0.05)'
-                    : '0 0 0 rgba(0,0,0,0)',
-                minHeight: '200px',
-                transition: 'all 0.25s ease',
+                    ? '0 0 35px rgba(56,189,248,0.25), inset 0 0 35px rgba(56,189,248,0.05)'
+                    : '0 0 30px rgba(6,182,212,0.12), inset 0 0 30px rgba(6,182,212,0.03)',
+                minHeight: '220px',
               }}
             >
               {/* Center Content */}
@@ -452,7 +451,7 @@ export const ConnectDataSourcePage: React.FC = () => {
                     </motion.div>
                   )}
 
-                  {/* 2. DATASET CONNECTED & READY STATE (CLEAR ACTIONS TO NEXT STEP) */}
+                  {/* 2. DATASET CONNECTED & READY STATE — CLEAN FORMAT (JUST UPLOAD & DELETE OPTIONS) */}
                   {uploadStatus === 'success' && uploadedInfo && (
                     <motion.div
                       key="success"
@@ -476,61 +475,37 @@ export const ConnectDataSourcePage: React.FC = () => {
                           </span>
                         </div>
 
-                        <p className="text-xs text-emerald-300 font-medium px-2">
-                          File uploaded successfully! Redirecting to Data Health & Clean...
-                        </p>
-
-                        <p className="text-xs text-slate-400 font-mono px-2 text-break-safe">
+                        <p className="text-xs text-slate-300 font-mono px-2 text-break-safe">
                           <span className="text-emerald-400 font-bold">{uploadedInfo.format}</span> • {uploadedInfo.size} • {uploadedInfo.rows.toLocaleString()} rows • {uploadedInfo.cols} columns
                         </p>
                       </div>
 
-                      {/* PRIMARY NEXT STEP ACTIONS */}
-                      <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-2.5 sm:gap-3 mt-2 w-full max-w-md px-2">
+                      {/* EXACTLY TWO CLEAN OPTIONS: 1. UPLOAD FILE & 2. DELETE UPLOADED FILE */}
+                      <div className="flex flex-wrap items-center justify-center gap-3 mt-3 w-full max-w-md px-2">
+                        {/* Option 1: Upload File */}
                         <motion.button
-                          whileHover={{ scale: 1.03, boxShadow: '0 0 24px rgba(6,182,212,0.45)' }}
+                          whileHover={{ scale: 1.03, boxShadow: '0 0 25px rgba(59,130,246,0.45)' }}
                           whileTap={{ scale: 0.97 }}
-                          className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 via-cyan-500 to-purple-600 cursor-pointer shadow-lg shadow-cyan-500/25"
-                          onClick={() => navigate('/ask')}
-                        >
-                          <Sparkles className="w-4 h-4" />
-                          <span>Proceed to Data Health & Clean</span>
-                          <ArrowRight className="w-4 h-4 ml-0.5" />
-                        </motion.button>
-
-                        <motion.button
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.97 }}
-                          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-200 border border-slate-700 bg-slate-900/90 hover:border-purple-500/40 cursor-pointer"
-                          onClick={() => navigate('/dashboard')}
-                        >
-                          <Table className="w-3.5 h-3.5 text-purple-400" />
-                          <span>Open Dashboard</span>
-                        </motion.button>
-                      </div>
-
-                      {/* Secondary Dataset Actions */}
-                      <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mt-2 px-2">
-                        <button
                           onClick={() => {
                             setUploadStatus('idle');
                             setTimeout(() => inputRef.current?.click(), 100);
                           }}
-                          className="text-[11px] text-cyan-400 hover:text-cyan-300 underline flex items-center gap-1.5 cursor-pointer transition-colors font-medium"
+                          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 via-cyan-500 to-indigo-600 cursor-pointer shadow-lg shadow-cyan-500/25 transition-all"
                         >
-                          <Upload className="w-3.5 h-3.5" />
-                          <span>Upload different dataset</span>
-                        </button>
+                          <Upload className="w-4 h-4" />
+                          <span>Upload File</span>
+                        </motion.button>
 
-                        <span className="text-slate-600 text-xs hidden sm:inline">•</span>
-
-                        <button
+                        {/* Option 2: Delete Uploaded File */}
+                        <motion.button
+                          whileHover={{ scale: 1.03, boxShadow: '0 0 25px rgba(244,63,94,0.35)' }}
+                          whileTap={{ scale: 0.97 }}
                           onClick={handleRemoveDataset}
-                          className="text-[11px] text-rose-400 hover:text-rose-300 underline flex items-center gap-1.5 cursor-pointer transition-colors font-medium"
+                          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-rose-300 hover:text-white bg-rose-500/15 hover:bg-rose-600/30 border border-rose-500/40 hover:border-rose-500 cursor-pointer shadow-md transition-all"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Disconnect / Remove</span>
-                        </button>
+                          <Trash2 className="w-4 h-4 text-rose-400" />
+                          <span>Delete Uploaded File</span>
+                        </motion.button>
                       </div>
                     </motion.div>
                   )}
