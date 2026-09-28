@@ -9,6 +9,7 @@ import type { DashboardWidget } from '@/types/dashboard';
 import { generateAiExecutivePdfReport } from '@/services/aiReportService';
 import { CodeInspectorModal } from '@/components/dashboard/CodeInspectorModal';
 import { LiveVisualizationRenderer } from '@/components/dashboard/LiveVisualizationRenderer';
+import { formatChartTypeName, formatVisualTitle } from '@/utils/visualFormatter';
 import {
   BarChart3,
   Bot,
@@ -134,22 +135,54 @@ export const DashboardPage: React.FC = () => {
 
       // Include canvas widgets if available and not already in saved visuals
       if (widgets && widgets.length > 0) {
-        const existingIds = new Set(currentVisuals.map(v => v.id));
+        const existingIds = new Set(currentVisuals.map(v => String(v.id || '').trim().toLowerCase()));
+        const existingTitles = new Set(currentVisuals.map(v => (v.title || '').trim().toLowerCase()));
+
+        // Enrich existing saved visuals with canvas image if backend lacked it
+        for (const w of widgets) {
+          const wTitle = (w.title || '').trim().toLowerCase();
+          const match = currentVisuals.find(v => 
+            (v.id && String(v.id).trim().toLowerCase() === String(w.id || '').trim().toLowerCase()) || 
+            (v.title && (v.title || '').trim().toLowerCase() === wTitle)
+          );
+          if (match) {
+            if (!match.base64_image && w.base64Image) {
+              match.base64_image = w.base64Image;
+            }
+            if (!match.image_url && w.imageUrl) {
+              match.image_url = w.imageUrl;
+            }
+          }
+        }
+
+        // Only add user-created widgets that are not already present in currentVisuals
         const widgetVisuals: SavedVisualizationItem[] = widgets
-          .filter(w => !existingIds.has(w.id))
-          .map((w, idx) => ({
-            id: w.id,
-            title: w.title,
-            chart_type: w.type === 'sandbox_chart' ? (w.chartType || 'bar') : (w.type || 'bar'),
-            user_question: w.title,
-            columns_used: w.columnsUsed || activeDatasetColumns?.slice(0, 3) || [],
-            image_url: w.imageUrl,
-            base64_image: w.base64Image,
-            explanation: w.explanation,
-            execution_time_ms: w.executionTimeMs || 0,
-            position: currentVisuals.length + idx + 1,
-            data: w.data || w.spec?.data
-          } as any));
+          .filter(w => {
+            const wId = String(w.id || '').trim().toLowerCase();
+            const wTitle = (w.title || '').trim().toLowerCase();
+            if (existingIds.has(wId) || existingTitles.has(wTitle)) {
+              return false;
+            }
+            // Only include user visual charts (sandbox chart or widgets with visual data/image)
+            const isUserChart = w.type === 'sandbox_chart' || !!w.base64Image || !!w.imageUrl || !!w.data;
+            return isUserChart;
+          })
+          .map((w, idx) => {
+            existingTitles.add((w.title || '').trim().toLowerCase());
+            return {
+              id: w.id,
+              title: formatVisualTitle(w.title),
+              chart_type: w.type === 'sandbox_chart' ? (w.chartType || 'bar') : (w.type || 'bar'),
+              user_question: w.title,
+              columns_used: w.columnsUsed || activeDatasetColumns?.slice(0, 3) || [],
+              image_url: w.imageUrl,
+              base64_image: w.base64Image,
+              explanation: w.explanation,
+              execution_time_ms: w.executionTimeMs || 0,
+              position: currentVisuals.length + idx + 1,
+              data: w.data || w.spec?.data
+            } as any;
+          });
 
         if (currentVisuals.length === 0) {
           currentVisuals = widgetVisuals;
@@ -157,6 +190,15 @@ export const DashboardPage: React.FC = () => {
           currentVisuals = [...currentVisuals, ...widgetVisuals];
         }
       }
+
+      // Strict single-visual deduplication pass for report generation
+      const seenVisualKeys = new Set<string>();
+      currentVisuals = currentVisuals.filter(v => {
+        const key = (v.title || v.user_question || v.id || '').trim().toLowerCase();
+        if (!key || seenVisualKeys.has(key)) return false;
+        seenVisualKeys.add(key);
+        return true;
+      });
 
       const resolvedName = activeDsMeta?.name || activeDatasetName || 'Employee_Dataset.csv';
       const resolvedRows = activeDsMeta?.rows ?? activeDatasetRowCount ?? 100;
@@ -735,7 +777,7 @@ export const DashboardPage: React.FC = () => {
             <div className="text-[11px] text-slate-500 font-mono flex items-center justify-between pt-1">
               <span>Auto-synchronized with Data Analyst AI</span>
               {currentWidget && (
-                <span className="text-cyan-400 font-bold">{currentWidget.chartType || 'Plotly Visual'}</span>
+                <span className="text-cyan-400 font-bold">{formatChartTypeName(currentWidget.chartType)}</span>
               )}
             </div>
           </div>

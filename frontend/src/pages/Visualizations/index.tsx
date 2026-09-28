@@ -9,6 +9,7 @@ import type { SavedVisualizationItem, VisualSuggestionItem } from '@/services/da
 import type { DashboardWidget } from '@/types/dashboard';
 import { LiveVisualizationRenderer } from '@/components/dashboard/LiveVisualizationRenderer';
 import { CodeInspectorModal } from '@/components/dashboard/CodeInspectorModal';
+import { formatChartTypeName, formatVisualTitle } from '@/utils/visualFormatter';
 import {
   BarChart3,
   LineChart,
@@ -413,10 +414,10 @@ export const VisualizationsPage: React.FC = () => {
                   <div className="flex items-start justify-between gap-3 border-b border-slate-800/80 pb-3">
                     <div className="space-y-0.5 min-w-0 flex-1">
                       <h3 className="text-sm font-bold text-white tracking-wide truncate">
-                        {item.title}
+                        {formatVisualTitle(item.title)}
                       </h3>
                       <p className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
-                        <span className="text-cyan-400 font-semibold">{item.chart_type?.toUpperCase()}</span>
+                        <span className="text-cyan-400 font-semibold">{formatChartTypeName(item.chart_type)}</span>
                         <span>•</span>
                         <span>{item.created_at ? new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Live'}</span>
                       </p>

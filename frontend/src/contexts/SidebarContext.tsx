@@ -32,6 +32,17 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [isCollapsed]);
 
+  // Dynamic cross-device responsive handler for tablet/mobile orientation & resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsMobileOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const toggleSidebar = () => setIsCollapsed((prev) => !prev);
   const toggleMobile = () => setIsMobileOpen((prev) => !prev);
   const closeMobile = () => setIsMobileOpen(false);

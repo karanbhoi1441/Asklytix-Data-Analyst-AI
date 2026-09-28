@@ -1850,7 +1850,7 @@ plt.close('all')
                 }
 
         # ─────────────────────────────────────────────────────────────────────────
-        # 17. TOP N RANKING / HORIZONTAL BAR CHART
+        # 17. TOP N RANKING / HORIZONTAL OR VERTICAL BAR CHART
         # ─────────────────────────────────────────────────────────────────────────
         is_top_n = any(k in lower_p for k in ["top", "highest", "best", "lowest", "bottom", "ranking", "horizontal", "barh"])
         if is_top_n and target_num:
@@ -1859,21 +1859,28 @@ plt.close('all')
             top_n = max(3, min(top_n, 15))
             is_bottom = any(k in lower_p for k in ["bottom", "lowest", "least", "worst", "underperforming"])
 
+            # Check whether user explicitly asked for horizontal vs vertical bar
+            is_vertical_req = any(k in lower_p for k in ["vertical", "column", "vbar", "vertical bar", "column chart", "column bar"])
+            is_horizontal_req = any(k in lower_p for k in ["horizontal", "barh", "horizontal bar"])
+            render_horizontal = is_horizontal_req and not is_vertical_req
+
             name_cat = next((c for c in meaningful_cats if any(k in c.lower() for k in ["name", "employee", "customer", "person", "model", "item"])), target_cat)
             prefix = "Bottom" if is_bottom else "Top"
             title = f"{prefix} {top_n} Employees by {target_num.replace('_', ' ').title()}" if ("employee" in lower_p or "name" in name_cat.lower()) else f"{prefix} {top_n} {target_num.replace('_', ' ').title()} by {name_cat.replace('_', ' ').title()}"
-            explanation = f"Generated horizontal bar chart ranking {prefix.lower()} {top_n} records by {target_num}."
+            bar_style_name = "horizontal" if render_horizontal else "vertical"
+            explanation = f"Generated {bar_style_name} bar chart ranking {prefix.lower()} {top_n} records by {target_num}."
 
             df_calc = df.copy()
             df_calc[target_num] = pd.to_numeric(df_calc[target_num].astype(str).str.replace(r'[\$,₹, ]', '', regex=True), errors='coerce')
             
             if is_bottom:
-                top_df = df_calc.dropna(subset=[name_cat, target_num]).sort_values(by=target_num, ascending=False).tail(top_n)
+                top_df = df_calc.dropna(subset=[name_cat, target_num]).sort_values(by=target_num, ascending=True).head(top_n)
             else:
-                top_df = df_calc.dropna(subset=[name_cat, target_num]).sort_values(by=target_num, ascending=True).tail(top_n)
+                top_df = df_calc.dropna(subset=[name_cat, target_num]).sort_values(by=target_num, ascending=False).head(top_n)
                 
             spec_data = [
                 {
+                    "category": str(r[name_cat]),
                     "name": str(r[name_cat]),
                     "value": float(r[target_num]),
                     "formatted_value": f"₹{float(r[target_num]):,.0f}" if float(r[target_num]) > 1000 else f"{float(r[target_num]):,.1f}",
@@ -1882,12 +1889,18 @@ plt.close('all')
                 for _, r in top_df.iterrows()
             ]
 
-            code = f"""# Sort and rank {prefix.lower()} {top_n} records
+            bar_color = '#f43f5e' if is_bottom else '#6366f1'
+            edge_color = '#fb7185' if is_bottom else '#818cf8'
+
+            if render_horizontal:
+                chart_type = "horizontal_bar"
+                asc_flag = 'False' if is_bottom else 'True'
+                code = f"""# Sort and rank {prefix.lower()} {top_n} records horizontally
 df['{target_num}'] = pd.to_numeric(df['{target_num}'].astype(str).str.replace(r'[\\$,₹, ]', '', regex=True), errors='coerce')
-top_df = df.dropna(subset=['{name_cat}', '{target_num}']).sort_values(by='{target_num}', ascending={'False' if is_bottom else 'True'}).tail({top_n})
+top_df = df.dropna(subset=['{name_cat}', '{target_num}']).sort_values(by='{target_num}', ascending={asc_flag}).tail({top_n})
 
 fig, ax = plt.subplots(figsize=(9.5, 5.5), dpi=160)
-bars = ax.barh(top_df['{name_cat}'].astype(str), top_df['{target_num}'], color='#6366f1' if not is_bottom else '#f43f5e', edgecolor='#818cf8' if not is_bottom else '#fb7185', linewidth=1.2, height=0.55, zorder=3)
+bars = ax.barh(top_df['{name_cat}'].astype(str), top_df['{target_num}'], color='{bar_color}', edgecolor='{edge_color}', linewidth=1.2, height=0.55, zorder=3)
 
 for bar in bars:
     w = bar.get_width()
@@ -1908,9 +1921,40 @@ plt.tight_layout()
 plt.savefig(output_path, dpi=160, bbox_inches='tight', facecolor='#0a0e1a', edgecolor='none')
 plt.close('all')
 """
+            else:
+                chart_type = "bar"
+                asc_flag = 'True' if is_bottom else 'False'
+                code = f"""# Sort and rank {prefix.lower()} {top_n} records vertically
+df['{target_num}'] = pd.to_numeric(df['{target_num}'].astype(str).str.replace(r'[\\$,₹, ]', '', regex=True), errors='coerce')
+top_df = df.dropna(subset=['{name_cat}', '{target_num}']).sort_values(by='{target_num}', ascending={asc_flag}).head({top_n})
+
+fig, ax = plt.subplots(figsize=(9.5, 5.5), dpi=160)
+bars = ax.bar(top_df['{name_cat}'].astype(str), top_df['{target_num}'], color='{bar_color}', edgecolor='{edge_color}', linewidth=1.2, width=0.55, zorder=3)
+
+for bar in bars:
+    h = bar.get_height()
+    label = f'₹{{h/1e6:.1f}}M' if h >= 1e6 else f'₹{{h:,.0f}}' if h > 1000 else f'{{h:,.1f}}'
+    ax.annotate(label,
+                xy=(bar.get_x() + bar.get_width() / 2, h),
+                xytext=(0, 5),
+                textcoords="offset points",
+                ha='center', va='bottom',
+                fontsize=9.5, fontweight='bold', color='#ffffff')
+
+ax.set_title("{title}", fontsize=13, fontweight='bold', pad=15, color='#ffffff')
+ax.set_xlabel("{name_cat.replace('_', ' ').title()}", fontsize=11, fontweight='bold', labelpad=10, color='#94a3b8')
+ax.set_ylabel("{target_num.replace('_', ' ').title()}", fontsize=11, fontweight='bold', labelpad=10, color='#94a3b8')
+plt.xticks(rotation=20, ha='right')
+ax.grid(axis='y', linestyle='--', alpha=0.3, zorder=0)
+
+plt.tight_layout()
+plt.savefig(output_path, dpi=160, bbox_inches='tight', facecolor='#0a0e1a', edgecolor='none')
+plt.close('all')
+"""
+
             chart_spec = {
                 "id": unique_viz_id,
-                "chart_type": "horizontal_bar",
+                "chart_type": chart_type,
                 "title": title,
                 "dataset_id": active_ds_id,
                 "category_column": name_cat,
@@ -1924,7 +1968,7 @@ plt.close('all')
             return {
                 "status": "success",
                 "code": code.strip(),
-                "chart_type": "horizontal_bar",
+                "chart_type": chart_type,
                 "title": title,
                 "columns_used": [name_cat, target_num],
                 "explanation": explanation,
@@ -2236,11 +2280,43 @@ plt.close('all')
     @classmethod
     def _build_retry_code(cls, chart_type: str, columns_used: List[str], df: pd.DataFrame, title: str) -> Optional[str]:
         try:
-            col = columns_used[0] if columns_used else df.columns[0]
+            cat_col = None
+            num_col = None
+            for c in columns_used:
+                if cls._is_numeric_series(c, df) and not num_col:
+                    num_col = c
+                elif not cat_col:
+                    cat_col = c
+
+            if not cat_col:
+                cat_col = df.columns[0]
+            if not num_col:
+                num_candidates = [c for c in df.columns if cls._is_numeric_series(c, df) and c != cat_col]
+                num_col = num_candidates[0] if num_candidates else None
+
             if chart_type == "pie":
-                return f"""counts = df['{col}'].dropna().astype(str).value_counts().head(6)
+                if num_col:
+                    return f"""df['{num_col}'] = pd.to_numeric(df['{num_col}'].astype(str).str.replace(r'[\\$,₹, ]', '', regex=True), errors='coerce')
+agg = df.dropna(subset=['{cat_col}', '{num_col}']).groupby('{cat_col}')['{num_col}'].sum().sort_values(ascending=False).head(6)
+total_val = agg.sum()
+percentages = (agg / (total_val if total_val > 0 else 1)) * 100
+
+fig, ax = plt.subplots(figsize=(9, 5), dpi=160)
+colors = ['#6366f1', '#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899'][:len(agg)]
+wedges, texts, autotexts = ax.pie(agg.values, autopct='%1.1f%%', startangle=140, colors=colors)
+for autotext in autotexts:
+    autotext.set_color('#ffffff')
+    autotext.set_weight('bold')
+ax.legend(wedges, [f"{{k}} ({{v:,.0f}})" for k, v in zip(agg.index, agg.values)], loc="center left", bbox_to_anchor=(1, 0.5))
+ax.set_title("{title}", fontsize=12, fontweight='bold', color='#ffffff')
+plt.tight_layout()
+plt.savefig(output_path, dpi=160, bbox_inches='tight', facecolor='#0a0e1a', edgecolor='none')
+plt.close('all')
+"""
+                else:
+                    return f"""counts = df['{cat_col}'].dropna().astype(str).value_counts().head(6)
 total_count = counts.sum()
-percentages = (counts / total_count) * 100
+percentages = (counts / (total_count if total_count > 0 else 1)) * 100
 
 fig, ax = plt.subplots(figsize=(9, 5), dpi=160)
 colors = ['#6366f1', '#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899'][:len(counts)]
@@ -2254,11 +2330,60 @@ plt.tight_layout()
 plt.savefig(output_path, dpi=160, bbox_inches='tight', facecolor='#0a0e1a', edgecolor='none')
 plt.close('all')
 """
+            elif chart_type == "horizontal_bar":
+                if num_col:
+                    return f"""df['{num_col}'] = pd.to_numeric(df['{num_col}'].astype(str).str.replace(r'[\\$,₹, ]', '', regex=True), errors='coerce')
+agg = df.dropna(subset=['{cat_col}', '{num_col}']).groupby('{cat_col}')['{num_col}'].mean().sort_values(ascending=True).tail(6)
+
+fig, ax = plt.subplots(figsize=(9.5, 5.5), dpi=160)
+colors = ['#6366f1', '#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899'][:len(agg)]
+bars = ax.barh(agg.index.astype(str), agg.values, color=colors, height=0.55)
+for bar in bars:
+    w = bar.get_width()
+    label = f'₹{{w/1e6:.1f}}M' if w >= 1e6 else f'₹{{w:,.0f}}' if w > 1000 else f'{{w:,.1f}}'
+    ax.annotate(label, xy=(w, bar.get_y() + bar.get_height() / 2), xytext=(6, 0), textcoords="offset points", ha='left', va='center', fontsize=9, fontweight='bold', color='#ffffff')
+ax.set_title("{title}", fontsize=12, fontweight='bold', color='#ffffff')
+ax.set_xlabel("{num_col.replace('_', ' ').title()}", fontsize=10, color='#94a3b8')
+ax.set_ylabel("{cat_col.replace('_', ' ').title()}", fontsize=10, color='#94a3b8')
+plt.tight_layout()
+plt.savefig(output_path, dpi=160, bbox_inches='tight', facecolor='#0a0e1a', edgecolor='none')
+plt.close('all')
+"""
+                else:
+                    return f"""counts = df['{cat_col}'].dropna().astype(str).value_counts().head(6)
+fig, ax = plt.subplots(figsize=(9.5, 5.5), dpi=160)
+colors = ['#6366f1', '#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899'][:len(counts)]
+ax.barh(counts.index.astype(str), counts.values, color=colors, height=0.55)
+ax.set_title("{title}", fontsize=12, fontweight='bold', color='#ffffff')
+plt.tight_layout()
+plt.savefig(output_path, dpi=160, bbox_inches='tight', facecolor='#0a0e1a', edgecolor='none')
+plt.close('all')
+"""
             else:
-                return f"""counts = df['{col}'].dropna().astype(str).value_counts().head(6)
+                if num_col:
+                    return f"""df['{num_col}'] = pd.to_numeric(df['{num_col}'].astype(str).str.replace(r'[\\$,₹, ]', '', regex=True), errors='coerce')
+agg = df.dropna(subset=['{cat_col}', '{num_col}']).groupby('{cat_col}')['{num_col}'].mean().sort_values(ascending=False).head(6)
+
+fig, ax = plt.subplots(figsize=(9, 5), dpi=160)
+colors = ['#6366f1', '#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899'][:len(agg)]
+bars = ax.bar(agg.index.astype(str), agg.values, color=colors, width=0.55)
+for bar in bars:
+    h = bar.get_height()
+    label = f'₹{{h/1e6:.1f}}M' if h >= 1e6 else f'₹{{h:,.0f}}' if h > 1000 else f'{{h:,.1f}}'
+    ax.annotate(label, xy=(bar.get_x() + bar.get_width() / 2, h), xytext=(0, 5), textcoords="offset points", ha='center', va='bottom', fontsize=9, fontweight='bold', color='#ffffff')
+ax.set_title("{title}", fontsize=12, fontweight='bold', color='#ffffff')
+ax.set_ylabel("{num_col.replace('_', ' ').title()}", fontsize=10, color='#94a3b8')
+ax.set_xlabel("{cat_col.replace('_', ' ').title()}", fontsize=10, color='#94a3b8')
+plt.xticks(rotation=20, ha='right')
+plt.tight_layout()
+plt.savefig(output_path, dpi=160, bbox_inches='tight', facecolor='#0a0e1a', edgecolor='none')
+plt.close('all')
+"""
+                else:
+                    return f"""counts = df['{cat_col}'].dropna().astype(str).value_counts().head(6)
 fig, ax = plt.subplots(figsize=(9, 5), dpi=160)
 colors = ['#6366f1', '#06b6d4', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899'][:len(counts)]
-ax.bar(counts.index, counts.values, color=colors, width=0.55)
+ax.bar(counts.index.astype(str), counts.values, color=colors, width=0.55)
 ax.set_title("{title}", fontsize=12, fontweight='bold', color='#ffffff')
 plt.xticks(rotation=20, ha='right')
 plt.tight_layout()

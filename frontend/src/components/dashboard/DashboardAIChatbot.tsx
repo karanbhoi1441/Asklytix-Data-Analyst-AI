@@ -27,6 +27,7 @@ import {
 import type { WidgetType, DashboardWidget } from '@/types/dashboard';
 import { datasetService } from '@/services/datasetService';
 import { CodeInspectorModal } from './CodeInspectorModal';
+import { formatChartTypeName, formatVisualTitle } from '@/utils/visualFormatter';
 
 export type AIMode = 'visual' | 'deep' | 'executive' | 'trend';
 
@@ -517,10 +518,12 @@ export const DashboardAIChatbot: React.FC<DashboardAIChatbotProps> = ({
           setQueryStage('saving_visual');
           const viz = vizRes.visualization;
           const visualId = vizRes.saved_item?.id || `w_sandbox_${Date.now()}`;
+          const formattedTitle = formatVisualTitle(viz.title);
+          const formattedType = formatChartTypeName(viz.chart_type);
           const sandboxWidget: DashboardWidget = {
             id: visualId,
             type: 'sandbox_chart',
-            title: viz.title,
+            title: formattedTitle,
             colSpan: 4,
             position: vizRes.saved_item?.position || 1,
             imageUrl: viz.image_url || '',
@@ -529,7 +532,7 @@ export const DashboardAIChatbot: React.FC<DashboardAIChatbotProps> = ({
             generatedCode: vizRes.generated_code,
             executionTimeMs: vizRes.execution_time_ms,
             columnsUsed: viz.columns_used,
-            chartType: viz.chart_type,
+            chartType: formattedType,
             explanation: vizRes.explanation
           };
 
@@ -545,7 +548,7 @@ export const DashboardAIChatbot: React.FC<DashboardAIChatbotProps> = ({
               stats: [
                 { label: 'Sandbox Status', value: 'Verified 🔒' },
                 { label: 'Execution', value: `${vizRes.execution_time_ms || 0}ms` },
-                { label: 'Chart Type', value: viz.chart_type.toUpperCase() }
+                { label: 'Chart Type', value: formattedType }
               ],
               insights: [
                 `Executed Python visualization code in isolated secure sandbox.`,

@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import type { SavedVisualizationItem } from '@/services/datasetService';
+import { formatChartTypeName, formatVisualTitle } from '@/utils/visualFormatter';
 
 export interface ColumnSchemaInfo {
   name: string;
@@ -492,9 +493,35 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
   checkPageBreak(65);
 
   const rawVisuals = reportData.visualizations || [];
-  const normalizedVisuals: VisualizationReportItem[] = rawVisuals.map((v: any, idx: number) => {
+
+  // Deduplicate visuals strictly so each distinct user-created visualization is only generated once (single visual, not double)
+  const uniqueMap = new Map<string, any>();
+  for (const rawItem of rawVisuals) {
+    if (!rawItem) continue;
+    const v = rawItem as any;
+    const titleKey = (v.title || '').trim().toLowerCase();
+    const questionKey = (v.user_question || v.userQuestion || '').trim().toLowerCase();
+    const idKey = v.id ? String(v.id).trim().toLowerCase() : '';
+    const dedupeKey = titleKey || questionKey || idKey;
+    if (!dedupeKey) continue;
+
+    if (!uniqueMap.has(dedupeKey)) {
+      uniqueMap.set(dedupeKey, v);
+    } else {
+      // If the duplicate has richer visual data (base64 image or url), merge it into the existing record
+      const existing = uniqueMap.get(dedupeKey);
+      const hasImage = !!(v.base64_image || v.base64Image || v.image_url || v.imageUrl);
+      const existingHasImage = !!(existing.base64_image || existing.base64Image || existing.image_url || existing.imageUrl);
+      if (!existingHasImage && hasImage) {
+        uniqueMap.set(dedupeKey, { ...existing, ...v });
+      }
+    }
+  }
+
+  const uniqueRawVisuals = uniqueMap.size > 0 ? Array.from(uniqueMap.values()) : rawVisuals;
+  const normalizedVisuals: VisualizationReportItem[] = uniqueRawVisuals.map((v: any, idx: number) => {
     const chartType = v.chart_type || v.type || 'bar';
-    const title = v.title || v.user_question || `Visualization #${idx + 1}`;
+    const title = formatVisualTitle(v.title || v.user_question || `Visualization #${idx + 1}`);
     const rawData = v.data || v.spec?.data || [];
     const dataPoints = Array.isArray(rawData)
       ? rawData.map((d: any) => ({
@@ -564,7 +591,7 @@ export const generateAiExecutivePdfReport = async (reportData: ExecutiveReportDa
       doc.text(`VISUALIZATION ${visNumberStr}`, margin + 3.5, y + 5.2);
 
       // Cyan Pill Badge for Chart Type
-      const typeStr = `TYPE: ${vis.chartType.toUpperCase().replace(/_/g, ' ')}`;
+      const typeStr = `TYPE: ${formatChartTypeName(vis.chartType).toUpperCase()}`;
       doc.setTextColor(6, 182, 212);
       doc.setFontSize(7.5);
       doc.text(typeStr, pageWidth - margin - 4, y + 5.2, { align: 'right' });

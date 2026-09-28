@@ -13,6 +13,7 @@ import {
   Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { formatChartTypeName, formatVisualTitle } from '@/utils/visualFormatter';
 
 interface CodeInspectorModalProps {
   isOpen: boolean;
@@ -79,7 +80,7 @@ export const CodeInspectorModal: React.FC<CodeInspectorModalProps> = ({
                   </span>
                 </h3>
                 <p className="text-[11px] text-slate-400 font-mono truncate max-w-md">
-                  {title}
+                  {formatVisualTitle(title)}
                 </p>
               </div>
             </div>
@@ -101,7 +102,7 @@ export const CodeInspectorModal: React.FC<CodeInspectorModalProps> = ({
               </span>
               <span className="flex items-center gap-1 font-mono text-[11px]">
                 <BarChart2 className="w-3.5 h-3.5 text-purple-400" />
-                <span>Type: <strong className="text-slate-200 capitalize">{chartType}</strong></span>
+                <span>Type: <strong className="text-slate-200">{formatChartTypeName(chartType)}</strong></span>
               </span>
             </div>
 

@@ -30,8 +30,8 @@ export const DataSourceMotionBackground: React.FC = () => {
     if (!ctx) return;
 
     let animationFrameId: number;
-    let width = (canvas.width = canvas.parentElement?.clientWidth || window.innerWidth);
-    let height = (canvas.height = canvas.parentElement?.clientHeight || window.innerHeight);
+    let width = (canvas.width = window.innerWidth);
+    let height = (canvas.height = window.innerHeight);
 
     // Mouse coordinates for interactive repulsion & ripple
     const mouse = {
@@ -73,8 +73,8 @@ export const DataSourceMotionBackground: React.FC = () => {
 
     const handleResize = () => {
       if (!canvas) return;
-      width = canvas.width = canvas.parentElement?.clientWidth || window.innerWidth;
-      height = canvas.height = canvas.parentElement?.clientHeight || window.innerHeight;
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
     };
 
     window.addEventListener('mousemove', handleMouseMove, { passive: true });
@@ -164,7 +164,7 @@ export const DataSourceMotionBackground: React.FC = () => {
   return (
     <canvas
       ref={canvasRef}
-      className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-hidden"
+      className="fixed inset-0 w-full h-full pointer-events-none z-0 overflow-hidden"
     />
   );
 };

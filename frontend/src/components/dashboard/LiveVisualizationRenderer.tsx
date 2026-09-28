@@ -58,14 +58,18 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
   const isRadar = !isKPI && !isMap && (rawType.includes('radar') || rawType.includes('spider'));
   const isPie = !isKPI && !isMap && !isBox && !isViolin && !isCorrHeatmap && !isHeatmap && !isFunnel && !isWaterfall && !isTreemap && !isGantt && !isStacked && !isGrouped && !isRadar && (rawType.includes('pie') || rawType.includes('donut') || rawType.includes('proportion'));
   const isHist = !isKPI && !isMap && !isBox && !isViolin && !isCorrHeatmap && !isHeatmap && !isFunnel && !isWaterfall && !isTreemap && !isGantt && !isStacked && !isGrouped && !isRadar && !isPie && (rawType.includes('hist') || rawType.includes('distribut'));
-  const isHorizontalBar = !isKPI && !isMap && !isBox && !isViolin && !isCorrHeatmap && !isHeatmap && !isFunnel && !isWaterfall && !isTreemap && !isGantt && !isStacked && !isGrouped && !isRadar && !isPie && !isHist && (rawType.includes('horizontal') || rawType.includes('top_') || rawType.includes('bottom_'));
+  const isHorizontalBar = !isKPI && !isMap && !isBox && !isViolin && !isCorrHeatmap && !isHeatmap && !isFunnel && !isWaterfall && !isTreemap && !isGantt && !isStacked && !isGrouped && !isRadar && !isPie && !isHist && (rawType.includes('horizontal') || rawType.includes('barh'));
   const isScatter = !isKPI && !isMap && !isBox && !isViolin && !isCorrHeatmap && !isHeatmap && !isFunnel && !isWaterfall && !isTreemap && !isGantt && !isStacked && !isGrouped && !isRadar && !isPie && !isHist && !isHorizontalBar && (rawType.includes('scatter') || rawType.includes('vs') || rawType.includes('bubble'));
   const isLine = !isKPI && !isMap && !isBox && !isViolin && !isCorrHeatmap && !isHeatmap && !isFunnel && !isWaterfall && !isTreemap && !isGantt && !isStacked && !isGrouped && !isRadar && !isPie && !isHist && !isHorizontalBar && !isScatter && (rawType.includes('line') || rawType.includes('trend') || rawType.includes('time') || rawType.includes('area'));
 
   const rawChartData = useMemo(() => {
     const candidate = widget.spec?.data || widget.data;
     if (Array.isArray(candidate) && candidate.length > 0) {
-      return candidate;
+      return candidate.map((d: any) => ({
+        ...d,
+        category: String(d.category || d.name || d.label || d.category_label || d.x || d.city || 'Item'),
+        value: Number(d.value ?? d.salary ?? d.amount ?? d.total ?? d.count ?? d.y ?? 0)
+      }));
     }
     // Handle object with labels / values or categories / data
     if (candidate && typeof candidate === 'object') {
@@ -868,14 +872,14 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
   const isLineView = isLine;
   const svgW = 600;
   const svgH = 320;
-  const padL = 60;
-  const padR = 30;
+  const padL = isHorizontalBar ? 95 : 65;
+  const padR = isHorizontalBar ? 65 : 30;
   const padT = 30;
   const padB = 45;
   const chartW = svgW - padL - padR;
   const chartH = svgH - padT - padB;
 
-  const maxVal = Math.max(...chartData.map((d: any) => Number(d.value ?? d.count ?? 1)), 1);
+  const maxVal = Math.max(...chartData.map((d: any) => Number(d.value ?? d.salary ?? d.count ?? 0)), 1);
 
   return (
     <div className="w-full h-full flex flex-col justify-between p-3 relative chart-container select-none">
@@ -901,25 +905,102 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
 
       <div className="w-full flex-1 flex items-center justify-center relative min-h-[280px]">
         <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full h-full max-h-[340px] overflow-visible">
-          {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => {
-            const y = padT + chartH - pct * chartH;
-            return (
-              <g key={i}>
-                <line x1={padL} y1={y} x2={svgW - padR} y2={y} stroke="#1e293b" strokeDasharray="3 3" />
-                <text x={padL - 8} y={y + 3} textAnchor="end" fill="#64748b" fontSize={9} fontFamily="monospace">{Math.round(pct * maxVal)}</text>
-              </g>
-            );
-          })}
+          {isHorizontalBar ? (
+            [0, 0.25, 0.5, 0.75, 1].map((pct, i) => {
+              const x = padL + pct * chartW;
+              const tickVal = Math.round(pct * maxVal);
+              const label = tickVal >= 1000000 ? `${(tickVal / 1000000).toFixed(1)}M` : tickVal >= 1000 ? `${(tickVal / 1000).toFixed(0)}k` : `${tickVal}`;
+              return (
+                <g key={i}>
+                  <line x1={x} y1={padT} x2={x} y2={padT + chartH} stroke="#1e293b" strokeDasharray="3 3" />
+                  <text x={x} y={padT + chartH + 15} textAnchor="middle" fill="#64748b" fontSize={9} fontFamily="monospace">{label}</text>
+                </g>
+              );
+            })
+          ) : (
+            [0, 0.25, 0.5, 0.75, 1].map((pct, i) => {
+              const y = padT + chartH - pct * chartH;
+              const tickVal = Math.round(pct * maxVal);
+              const label = tickVal >= 1000000 ? `${(tickVal / 1000000).toFixed(1)}M` : tickVal >= 1000 ? `${(tickVal / 1000).toFixed(0)}k` : `${tickVal}`;
+              return (
+                <g key={i}>
+                  <line x1={padL} y1={y} x2={svgW - padR} y2={y} stroke="#1e293b" strokeDasharray="3 3" />
+                  <text x={padL - 8} y={y + 3} textAnchor="end" fill="#64748b" fontSize={9} fontFamily="monospace">{label}</text>
+                </g>
+              );
+            })
+          )}
 
-          {!isLineView ? (
+          {isHorizontalBar ? (
             chartData.map((d: any, i: number) => {
-              const val = Number(d.value ?? d.count ?? 1);
+              const val = Number(d.value ?? d.salary ?? d.count ?? 0);
+              const barW = Math.max((val / maxVal) * chartW, 2);
+              const barH = Math.min((chartH / chartData.length) * 0.65, 36);
+              const yPos = padT + (i + 0.5) * (chartH / chartData.length) - barH / 2;
+              const xPos = padL;
+              const isHover = hoveredData?.category === d.category || hoveredData?.name === d.name;
+              const isSel = activeDatum?.category === d.category || activeDatum?.name === d.name;
+
+              return (
+                <g
+                  key={i}
+                  className="cursor-pointer transition-transform duration-150"
+                  onClick={() => handleSelectDatum(d)}
+                  onPointerEnter={(e) => handlePointerMove(e, d)}
+                  onPointerMove={(e) => handlePointerMove(e, d)}
+                  onPointerLeave={handlePointerLeave}
+                >
+                  <text
+                    x={padL - 8}
+                    y={yPos + barH / 2 + 3.5}
+                    textAnchor="end"
+                    fill={isHover || isSel ? '#ffffff' : '#94a3b8'}
+                    fontSize={chartData.length > 7 ? 8.5 : 9.5}
+                    fontWeight={isHover || isSel ? 'bold' : 'normal'}
+                    fontFamily="sans-serif"
+                  >
+                    {String(d.category || d.name || `P${i + 1}`).length > 15
+                      ? `${String(d.category || d.name || `P${i + 1}`).slice(0, 14)}…`
+                      : String(d.category || d.name || `P${i + 1}`)}
+                  </text>
+                  <rect
+                    x={xPos}
+                    y={yPos}
+                    width={barW}
+                    height={barH}
+                    fill={THEME_COLORS[i % THEME_COLORS.length]}
+                    fillOpacity={isHover ? 1 : isSel ? 1 : (hoveredData || activeDatum ? 0.35 : 0.88)}
+                    stroke={isSel ? '#f43f5e' : isHover ? '#22d3ee' : '#6366f1'}
+                    strokeWidth={isSel ? 3 : isHover ? 2.5 : 1}
+                    filter={isHover ? 'drop-shadow(0 0 10px rgba(34, 211, 238, 0.8))' : isSel ? 'drop-shadow(0 0 12px rgba(244, 63, 94, 0.8))' : undefined}
+                    rx={4}
+                    className="transition-all duration-150"
+                  />
+                  <text
+                    x={xPos + barW + 6}
+                    y={yPos + barH / 2 + 3}
+                    textAnchor="start"
+                    fill={isHover || isSel ? '#ffffff' : '#94a3b8'}
+                    fontSize={8.5}
+                    fontWeight="bold"
+                    fontFamily="monospace"
+                  >
+                    {d.formatted_value || (val > 1000 ? `₹${val.toLocaleString()}` : `${val}`)}
+                  </text>
+                </g>
+              );
+            })
+          ) : !isLineView ? (
+            chartData.map((d: any, i: number) => {
+              const val = Number(d.value ?? d.salary ?? d.count ?? 0);
               const barH = (val / maxVal) * chartH;
               const barW = Math.min((chartW / chartData.length) * 0.65, 45);
               const xPos = padL + (i + 0.5) * (chartW / chartData.length) - barW / 2;
               const yPos = padT + chartH - barH;
               const isHover = hoveredData?.category === d.category || hoveredData?.bin_range === d.bin_range;
               const isSel = activeDatum?.category === d.category;
+              const rawLabel = String(d.category || d.bin_range || d.date || `P${i + 1}`);
+              const displayLabel = rawLabel.length > 12 ? `${rawLabel.slice(0, 11)}…` : rawLabel;
 
               return (
                 <g 
@@ -943,16 +1024,30 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
                     rx={4}
                     className="transition-all duration-150"
                   />
+                  {/* Top bar value indicator */}
+                  <text
+                    x={xPos + barW / 2}
+                    y={Math.max(yPos - 5, padT + 8)}
+                    textAnchor="middle"
+                    fill={isHover || isSel ? '#ffffff' : '#64748b'}
+                    fontSize={8}
+                    fontWeight="bold"
+                    fontFamily="monospace"
+                  >
+                    {d.formatted_value || (val >= 1000 ? `₹${(val / 1000).toFixed(0)}k` : `${val}`)}
+                  </text>
+                  {/* Bottom Category Label with smart angle on small screens / many bars */}
                   <text 
                     x={xPos + barW / 2} 
-                    y={svgH - 15} 
-                    textAnchor="middle" 
+                    y={svgH - 12} 
+                    textAnchor={chartData.length > 4 ? 'end' : 'middle'} 
+                    transform={chartData.length > 4 ? `rotate(-20, ${xPos + barW / 2}, ${svgH - 12})` : undefined}
                     fill={isHover || isSel ? '#ffffff' : '#94a3b8'} 
-                    fontSize={9.5} 
+                    fontSize={chartData.length > 6 ? 8.5 : 9.5} 
                     fontWeight={isHover || isSel ? 'bold' : 'normal'} 
                     fontFamily="sans-serif"
                   >
-                    {String(d.category || d.bin_range || d.date || `P${i + 1}`)}
+                    {displayLabel}
                   </text>
                 </g>
               );

@@ -10,6 +10,7 @@ import {
 import { CodeInspectorModal } from './CodeInspectorModal';
 import { Button } from '@/components/ui/Button';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatChartTypeName, formatVisualTitle } from '@/utils/visualFormatter';
 
 interface SandboxChartWidgetProps {
   id: string;
@@ -45,12 +46,9 @@ export const SandboxChartWidget: React.FC<SandboxChartWidgetProps> = ({
   const [isCodeModalOpen, setIsCodeModalOpen] = useState(false);
   const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
 
-  // Format chart type label nicely (e.g. 'bar' -> 'Bar Chart', 'line' -> 'Line Chart')
-  const formattedChartType = chartType
-    ? chartType.toLowerCase().includes('chart')
-      ? chartType.charAt(0).toUpperCase() + chartType.slice(1)
-      : `${chartType.charAt(0).toUpperCase() + chartType.slice(1)} Chart`
-    : 'Visual Chart';
+  // Format chart type label nicely (e.g. 'horizontal_bar' -> 'Horizontal Bar Chart')
+  const formattedChartType = formatChartTypeName(chartType);
+  const displayTitle = formatVisualTitle(title);
 
   // Determine image source
   const imageSrc = base64Image || (imageUrl ? (imageUrl.startsWith('http') || imageUrl.startsWith('data:') ? imageUrl : imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`) : '');
@@ -72,7 +70,7 @@ export const SandboxChartWidget: React.FC<SandboxChartWidgetProps> = ({
         <div className="flex items-start justify-between gap-2 pb-2">
           <div className="space-y-0.5 min-w-0 flex-1">
             <h3 className="text-sm font-bold text-white tracking-wide truncate">
-              {title}
+              {displayTitle}
             </h3>
             <p className="text-[11px] text-slate-400 font-mono flex items-center gap-1.5">
               <span>{formattedChartType}</span>
