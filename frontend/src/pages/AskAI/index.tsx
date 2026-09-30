@@ -6,8 +6,8 @@ import {
   Wand2, CheckCircle2, AlertTriangle, Play,
   Table as TableIcon, ArrowUpDown,
   Search, Check,
-  Zap, BarChart3, Trash2,
-  TrendingUp, RefreshCw, Cpu, Download, FileSpreadsheet,
+  Zap, BarChart3,
+  RefreshCw, Cpu, Download, FileSpreadsheet,
   Terminal, Eye, UploadCloud, ArrowRight
 } from 'lucide-react';
 import { useDatasets } from '@/hooks/useDatasets';
@@ -35,7 +35,7 @@ interface ChatMessage {
 
 export const AskAIPage: React.FC = () => {
   const navigate = useNavigate();
-  const { activeDataset, datasets, clearAllDatasets } = useDatasets();
+  const { activeDataset, datasets } = useDatasets();
   const rawDataset = activeDataset || (datasets.length > 0 ? datasets[0] : null);
   const dataset = rawDataset || {
     id: 'ds-placeholder',
@@ -60,7 +60,7 @@ export const AskAIPage: React.FC = () => {
   const getCachedRows = (id?: string | null): DatasetPreviewRow[] => {
     if (!id || id.startsWith('ds-placeholder')) return [];
     try {
-      const raw = sessionStorage.getItem(`asklytix_preview_${id}`);
+      const raw = localStorage.getItem(`asklytix_preview_${id}`) || sessionStorage.getItem(`asklytix_preview_${id}`);
       if (raw) return JSON.parse(raw);
     } catch {}
     return [];
@@ -69,7 +69,7 @@ export const AskAIPage: React.FC = () => {
   const getCachedQuality = (id?: string | null, fallback = 78): number => {
     if (!id || id.startsWith('ds-placeholder')) return fallback;
     try {
-      const raw = sessionStorage.getItem(`asklytix_quality_${id}`);
+      const raw = localStorage.getItem(`asklytix_quality_${id}`) || sessionStorage.getItem(`asklytix_quality_${id}`);
       if (raw) return Number(raw);
     } catch {}
     return fallback;
@@ -78,7 +78,7 @@ export const AskAIPage: React.FC = () => {
   const getCachedCleanStatus = (id?: string | null): 'dirty' | 'cleaning' | 'cleaned' => {
     if (!id || id.startsWith('ds-placeholder')) return 'dirty';
     try {
-      const raw = sessionStorage.getItem(`asklytix_clean_status_${id}`);
+      const raw = localStorage.getItem(`asklytix_clean_status_${id}`) || sessionStorage.getItem(`asklytix_clean_status_${id}`);
       if (raw === 'cleaned') return 'cleaned';
     } catch {}
     return 'dirty';
@@ -125,6 +125,7 @@ export const AskAIPage: React.FC = () => {
             setTableData(res.rows);
             try {
               sessionStorage.setItem(`asklytix_preview_${current.id}`, JSON.stringify(res.rows));
+              localStorage.setItem(`asklytix_preview_${current.id}`, JSON.stringify(res.rows));
             } catch {}
           }
         })
@@ -133,11 +134,12 @@ export const AskAIPage: React.FC = () => {
       datasetService.getQuality(current.id)
         .then((q) => {
           if (q && q.score !== undefined) {
-            const isClean = sessionStorage.getItem(`asklytix_clean_status_${current.id}`) === 'cleaned';
+            const isClean = (localStorage.getItem(`asklytix_clean_status_${current.id}`) || sessionStorage.getItem(`asklytix_clean_status_${current.id}`)) === 'cleaned';
             const finalScore = isClean ? 100 : q.score;
             setQualityScore(finalScore);
             try {
               sessionStorage.setItem(`asklytix_quality_${current.id}`, String(finalScore));
+              localStorage.setItem(`asklytix_quality_${current.id}`, String(finalScore));
             } catch {}
           }
         })
@@ -149,15 +151,11 @@ export const AskAIPage: React.FC = () => {
     }
   }, [activeDataset, datasets]);
 
-  // ─── PERMANENT CLEAR DATASET HANDLER ──────────────────────────────────────
-  const handleClearDatasetPermanently = () => {
-    clearAllDatasets();
-    setTableData([]);
+  // ─── SAFE RESET CHAT & FILTERS (DATA IS NEVER WIPED BEFORE LOGOUT) ────────
+  const handleResetChatAndFilters = () => {
     setMessages([]);
-    try {
-      sessionStorage.clear();
-    } catch {}
-    navigate('/connect');
+    setSearchQuery('');
+    setSortColumn('');
   };
 
   // ─── CODE INSPECTOR MODAL STATE ───────────────────────────────────────────
@@ -320,6 +318,9 @@ export const AskAIPage: React.FC = () => {
           sessionStorage.setItem(`asklytix_clean_status_${targetId}`, 'cleaned');
           sessionStorage.setItem(`asklytix_quality_${targetId}`, '100');
           sessionStorage.setItem(`asklytix_preview_${targetId}`, JSON.stringify(finalRows));
+          localStorage.setItem(`asklytix_clean_status_${targetId}`, 'cleaned');
+          localStorage.setItem(`asklytix_quality_${targetId}`, '100');
+          localStorage.setItem(`asklytix_preview_${targetId}`, JSON.stringify(finalRows));
         } catch {}
         return;
       } catch {
@@ -337,6 +338,9 @@ export const AskAIPage: React.FC = () => {
           sessionStorage.setItem(`asklytix_clean_status_${targetId}`, 'cleaned');
           sessionStorage.setItem(`asklytix_quality_${targetId}`, '100');
           sessionStorage.setItem(`asklytix_preview_${targetId}`, JSON.stringify(cleanedRows));
+          localStorage.setItem(`asklytix_clean_status_${targetId}`, 'cleaned');
+          localStorage.setItem(`asklytix_quality_${targetId}`, '100');
+          localStorage.setItem(`asklytix_preview_${targetId}`, JSON.stringify(cleanedRows));
         } catch {}
       }
       setCleanAuditLog([
@@ -489,7 +493,11 @@ export const AskAIPage: React.FC = () => {
         const res = await datasetService.queryAnalysis(targetId, query);
         const cleanAiText = (res.text || '')
           .split('\n')
-          .filter(line => !/^\s*[\*\-•]?\s*.*?(id|customer|showroom|name|code|uuid|key|person|email)\s+breakdown\s*:/i.test(line))
+          .filter(line => {
+            if (/^\s*[\*\-•]?\s*.*?(id|customer|showroom|name|code|uuid|key|person|email)\s+breakdown\s*:/i.test(line)) return false;
+            if (/^\s*[\*\-•]?\s*(\*\*)?(Lead Entry|Range|Evaluated Records|Data View|Total Sum)\b/i.test(line)) return false;
+            return true;
+          })
           .join('\n')
           .trim();
 
@@ -498,7 +506,7 @@ export const AskAIPage: React.FC = () => {
           sender: 'ai',
           text: cleanAiText,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          insights: res.insights,
+          insights: undefined,
           stats: res.stats,
           codeSnippet: res.codeSnippet,
           codeDetails: res.codeDetails,
@@ -572,21 +580,12 @@ export const AskAIPage: React.FC = () => {
         const pct = ((count / Math.max(total, 1)) * 100).toFixed(1);
         const colTitle = filterCol.replace(/_/g, ' ');
 
-        const aiResponseText = `### Filtered Records for **${filterVal}** (${colTitle}) in **${dataset.name}**:\n\n`
-          + `• **Matching Records**: **${count} rows** (${pct}% of ${total.toLocaleString()} total records in dataset)\n`
-          + `• **Filter Applied**: \`${filterCol}\` = **${filterVal}**\n`
-          + `• **Data View**: Showing the ${count} matching records exclusively in the table below (no extra entries).`;
+        const aiResponseText = `### Filtered Records for **${filterVal}** (${colTitle}) in **${dataset.name}**:`;
 
         const stats = [
           { label: `${filterVal.slice(0, 10)} Rows`, value: `${count}` },
           { label: 'Share', value: `${pct}%` },
           { label: 'Total Records', value: `${total}` }
-        ];
-
-        const insights = [
-          `Isolated ${count} records where ${filterCol} is '${filterVal}'.`,
-          `Represents ${pct}% of all entries in ${dataset.name}.`,
-          `Filtered table shows only the requested ${filterVal} records without extra entries.`
         ];
 
         const codeDetails: CodeRecordDetails = {
@@ -609,7 +608,7 @@ export const AskAIPage: React.FC = () => {
             sender: 'ai',
             text: aiResponseText,
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            insights,
+            insights: undefined,
             codeSnippet: `df[df['${filterCol}'] == '${filterVal}']`,
             codeDetails,
             stats,
@@ -671,37 +670,13 @@ export const AskAIPage: React.FC = () => {
           const topCnt = sortedEntries[0]?.[1] || 0;
           const isAllOne = topCnt <= 1;
           const isAllEqual = sortedEntries.length > 0 && sortedEntries.every(e => e[1] === topCnt);
-          const isTiedTop = sortedEntries.length > 1 && sortedEntries[0][1] === sortedEntries[1][1];
 
-          let freqHighlight = '';
-          if (isAllOne) {
-            freqHighlight = `• **Distribution**: All **${sortedEntries.length} ${colLabel}s** are distinct (1 record each / 100% unique)\n`;
-          } else if (isAllEqual) {
-            freqHighlight = `• **Distribution**: All **${sortedEntries.length} values** appear with equal frequency (${topCnt} records each)\n`;
-          } else if (isTiedTop) {
-            const tiedNames = sortedEntries.filter(e => e[1] === topCnt).map(e => e[0]);
-            freqHighlight = `• **Top ${colLabel}s (Tied)**: **${tiedNames.slice(0, 3).join(', ')}** with **${topCnt} records** each\n`;
-          } else {
-            const topPct = ((topCnt / Math.max(tableData.length, 1)) * 100).toFixed(1);
-            freqHighlight = `• **Most Frequent**: **${topItem}** (${topCnt} records, ${topPct}% share)\n`;
-          }
-
-          const aiResponseText = `The dataset **${dataset.name}** contains **${sortedEntries.length} unique ${colLabel}s** across ${tableData.length.toLocaleString()} records.\n\n`
-            + freqHighlight
-            + `• **Data View**: The distinct ${colLabel} breakdown is shown in the table below.`;
+          const aiResponseText = `The dataset **${dataset.name}** contains **${sortedEntries.length} unique ${colLabel}s** across ${tableData.length.toLocaleString()} records.`;
 
           const stats = [
             { label: `Unique ${colLabel.slice(0, 7)}s`, value: `${sortedEntries.length}` },
             { label: (isAllOne || isAllEqual) ? 'Distribution' : 'Top Value', value: isAllOne ? '100% Unique' : (isAllEqual ? `Equal (${topCnt})` : `${topItem} (${topCnt})`) },
             { label: 'Coverage', value: '100%' }
-          ];
-
-          const insights = [
-            `Extracted ${sortedEntries.length} distinct ${colLabel} values from active dataset.`,
-            (isAllOne || isAllEqual)
-              ? `All ${colLabel} values appear with equal frequency (${topCnt} ${topCnt === 1 ? 'record' : 'records'} each).`
-              : `'${topItem}' represents the highest concentration of records.`,
-            `Isolated column '${targetCol}' exclusively based on your query.`
           ];
 
           const codeDetails: CodeRecordDetails = {
@@ -725,7 +700,7 @@ export const AskAIPage: React.FC = () => {
               sender: 'ai',
               text: aiResponseText,
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              insights,
+              insights: undefined,
               codeSnippet: `df['${targetCol}'].value_counts()`,
               codeDetails,
               stats,
@@ -743,7 +718,7 @@ export const AskAIPage: React.FC = () => {
             return rec;
           });
 
-          const aiResponseText = `Here are the isolated records projecting only **${uniqueMatchedCols.join(', ')}** from **${dataset.name}**:\n\n• **Selected Columns**: ${uniqueMatchedCols.join(', ')}\n• **Displayed Records**: Showing ${projectedRows.length} rows matching your request\n• **Data View**: Clean table with only the requested fields is rendered below.`;
+          const aiResponseText = `Here are the isolated records projecting only **${uniqueMatchedCols.join(', ')}** from **${dataset.name}**:`;
 
           setMessages((prev) => [
             ...prev,
@@ -752,7 +727,7 @@ export const AskAIPage: React.FC = () => {
               sender: 'ai',
               text: aiResponseText,
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              insights: [`Isolated specific columns: ${uniqueMatchedCols.join(', ')} exclusively.`],
+              insights: undefined,
               stats: [
                 { label: 'Columns', value: `${uniqueMatchedCols.length}` },
                 { label: 'Returned Rows', value: `${projectedRows.length}` },
@@ -804,7 +779,6 @@ export const AskAIPage: React.FC = () => {
       }
 
       const topRow = extractedRows[0] || {};
-      const lastRow = extractedRows[extractedRows.length - 1] || {};
       const idCol = cols.find(c => /id|code|key/i.test(c));
       const nameCol = cols.find(c => /name|title/i.test(c));
       const leadParts: string[] = [];
@@ -813,26 +787,13 @@ export const AskAIPage: React.FC = () => {
       const leadStr = leadParts.join(' — ') || (topRow[cols[0]] ? String(topRow[cols[0]]) : 'Record #1');
       
       const vTop = sortTargetCol ? topRow[sortTargetCol] : null;
-      const vEnd = sortTargetCol ? lastRow[sortTargetCol] : null;
-      const isCur = Boolean(sortTargetCol && /salary|price|amount|revenue|cost/i.test(sortTargetCol));
-      const fmt = (v: any) => typeof v === 'number' ? (isCur ? `₹${v.toLocaleString()}` : v.toLocaleString()) : String(v ?? '');
 
-      const aiResponseText = `### ${isBottom ? 'Lowest' : 'Top'} ${extractedRows.length} ${sortTargetCol || 'records'} in **${dataset.name}**:\n\n`
-        + `• **Lead Entry**: **${leadStr}**${sortTargetCol ? ` (${sortTargetCol}: **${fmt(vTop)}**)` : ''}\n`
-        + (sortTargetCol ? `• **Range**: From **${fmt(vTop)}** to **${fmt(vEnd)}**.\n` : '')
-        + `• **Evaluated Records**: ${tableData.length.toLocaleString()} rows across ${cols.length} dimensions.\n`
-        + `• **Data View**: The exact sorted records are loaded in the interactive table below.`;
+      const aiResponseText = `### ${isBottom ? 'Lowest' : 'Top'} ${extractedRows.length} ${sortTargetCol || 'records'} in **${dataset.name}**:`;
 
       const stats = [
         { label: 'Returned Rows', value: `${extractedRows.length}` },
         { label: `${sortTargetCol ? sortTargetCol.slice(0, 8) : 'Top'} Lead`, value: String(vTop ?? leadStr).slice(0, 14) },
         { label: 'Total Dataset', value: `${tableData.length.toLocaleString()}` }
-      ];
-
-      const insights = [
-        `Retrieved ${extractedRows.length} rows from ${tableData.length.toLocaleString()} active dataset records.`,
-        `Columns included: ${cols.slice(0, 5).join(', ')}${cols.length > 5 ? '...' : ''}`,
-        'Ready for formula transformations and export.'
       ];
 
       const codeDetails: CodeRecordDetails = {
@@ -856,7 +817,7 @@ export const AskAIPage: React.FC = () => {
           sender: 'ai',
           text: aiResponseText,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          insights,
+          insights: undefined,
           codeSnippet: `df.head(${count})`,
           codeDetails,
           stats,
@@ -870,9 +831,18 @@ export const AskAIPage: React.FC = () => {
 
 
 
-  // ─── EMPTY STATE (ONLY IF GENUINELY NO USER DATASET UPLOADED YET) ─────────
+  // ─── EMPTY & LOADING STATE ─────────
   const storedActiveId = typeof window !== 'undefined' ? localStorage.getItem('asklytix_active_dataset_id') : null;
   const hasValidDataset = (rawDataset && rawDataset.id !== 'ds-placeholder') || datasets.length > 0 || !!storedActiveId;
+
+  if (!rawDataset && storedActiveId) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[500px] text-center p-8 space-y-4">
+        <RefreshCw className="w-8 h-8 text-cyan-400 animate-spin" />
+        <p className="text-sm text-slate-300 font-medium">Connecting to active dataset records...</p>
+      </div>
+    );
+  }
 
   if (!hasValidDataset) {
     return (
@@ -890,7 +860,7 @@ export const AskAIPage: React.FC = () => {
             No Dataset Connected
           </h2>
           <p className="text-sm text-slate-400 leading-relaxed">
-            All previous data has been cleared. Upload your CSV or Excel file to start asking AI questions, cleaning data, and viewing live records.
+            Upload your CSV or Excel file in Data Source to start asking AI questions, cleaning data, and viewing live records.
           </p>
         </div>
 
@@ -1027,16 +997,16 @@ export const AskAIPage: React.FC = () => {
               <span>Download Clean Dataset</span>
             </motion.button>
 
-            {/* CLEAR DATASET PERMANENTLY BUTTON */}
+            {/* RESET VIEW & FILTERS BUTTON */}
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              onClick={handleClearDatasetPermanently}
-              title="Permanently remove this dataset and reset workspace"
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-bold text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 cursor-pointer transition-all"
+              onClick={handleResetChatAndFilters}
+              title="Reset AI conversation and search filters"
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl font-bold text-xs text-slate-300 hover:text-white bg-slate-900/80 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition-all"
             >
-              <Trash2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Clear Data</span>
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Reset Filters</span>
             </motion.button>
           </div>
         </div>
@@ -1366,8 +1336,9 @@ export const AskAIPage: React.FC = () => {
                       <div className="leading-relaxed font-sans space-y-1.5 text-xs">
                         {msg.text.split('\n').map((line, lIdx) => {
                           if (!line.trim()) return <div key={lIdx} className="h-1" />;
-                          // Completely remove redundant breakdown lines of every record
+                          // Completely remove redundant breakdown and extra bullet lines
                           if (/^\s*[\*\-•]?\s*.*?\bbreakdown\s*:/i.test(line)) return null;
+                          if (/^\s*[\*\-•]?\s*(\*\*)?(Lead Entry|Range|Evaluated Records|Data View|Total Sum)\b/i.test(line)) return null;
                           
                           // Format bold **text**
                           const parts = line.split(/(\*\*.*?\*\*)/g);
@@ -1465,20 +1436,6 @@ export const AskAIPage: React.FC = () => {
                               <p className="text-xs font-black text-cyan-300 font-mono mt-0.5">{s.value}</p>
                             </div>
                           ))}
-                        </div>
-                      )}
-
-                      {/* Insights Bullet Points */}
-                      {msg.insights && (
-                        <div className="bg-purple-950/30 p-2.5 rounded-xl border border-purple-800/40 space-y-1">
-                          <p className="text-[10px] font-bold text-purple-300 flex items-center gap-1">
-                            <TrendingUp className="w-3 h-3 text-purple-400" /> Strategic Takeaways:
-                          </p>
-                          <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-slate-300">
-                            {msg.insights.map((ins, i) => (
-                              <li key={i}>{ins}</li>
-                            ))}
-                          </ul>
                         </div>
                       )}
 

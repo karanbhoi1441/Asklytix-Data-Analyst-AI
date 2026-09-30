@@ -1,4 +1,5 @@
 import os
+import json
 from typing import Optional, List
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -133,12 +134,58 @@ def list_visualizations(
         col_names = []
         spec_data = None
         chart_spec = None
+
+        if isinstance(raw_cols, str):
+            try:
+                raw_cols = json.loads(raw_cols)
+            except Exception:
+                pass
+
         if isinstance(raw_cols, dict):
             col_names = raw_cols.get("columns", [])
             spec_data = raw_cols.get("data")
             chart_spec = raw_cols.get("chart_specification")
         elif isinstance(raw_cols, list):
             col_names = raw_cols
+
+        if not spec_data and isinstance(chart_spec, dict):
+            spec_data = chart_spec.get("data")
+
+        # Dynamic fallback: If spec_data is missing, extract from the active dataset so it is NEVER static!
+        if not spec_data and item.dataset_id:
+            try:
+                ds = db.query(Dataset).filter(Dataset.id == item.dataset_id).first()
+                if ds:
+                    target_file = ds.file_path
+                    if ds.active_version_id:
+                        ver = db.query(DatasetVersion).filter(DatasetVersion.id == ds.active_version_id).first()
+                        if ver and os.path.exists(ver.file_path):
+                            target_file = ver.file_path
+                    if os.path.exists(target_file):
+                        df = AnalysisEngine.get_dataframe(target_file)
+                        if col_names and len(col_names) >= 2 and col_names[0] in df.columns and col_names[1] in df.columns:
+                            c1, c2 = col_names[0], col_names[1]
+                            grouped = df.groupby(c1)[c2].sum().reset_index().head(10)
+                            spec_data = [{"category": str(r[c1]), "value": float(r[c2])} for _, r in grouped.iterrows()]
+                        elif col_names and len(col_names) >= 1 and col_names[0] in df.columns:
+                            c1 = col_names[0]
+                            counts = df[c1].value_counts().reset_index().head(10)
+                            counts.columns = ["category", "value"]
+                            spec_data = [{"category": str(r["category"]), "value": float(r["value"])} for _, r in counts.iterrows()]
+            except Exception:
+                pass
+
+        if not chart_spec or not isinstance(chart_spec, dict):
+            chart_spec = {
+                "id": item.id,
+                "title": item.title,
+                "chart_type": item.chart_type,
+                "columns_used": col_names,
+                "data": spec_data or [],
+                "interactive": True
+            }
+        elif not chart_spec.get("data") and spec_data:
+            chart_spec["data"] = spec_data
 
         visualizations_list.append(
             SavedVisualizationItem(

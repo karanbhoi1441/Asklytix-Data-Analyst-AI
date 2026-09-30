@@ -67,6 +67,8 @@ export interface SavedVisualizationItem {
   execution_time_ms: number;
   position: number;
   created_at?: string;
+  data?: any;
+  chart_specification?: any;
 }
 
 export interface VisualizationResponse {

@@ -99,15 +99,14 @@ export function useDatasets() {
           }
         }
       } else if (list && list.length === 0) {
-        // Only reset if list is explicitly empty from backend and we have no valid pending upload
-        setDatasets([]);
-        setActiveDatasetDetails(null);
-        setActiveId(null);
-        saveActiveId(null);
-        try {
-          localStorage.removeItem(CACHED_DATASETS_KEY);
-          localStorage.removeItem(CACHED_ACTIVE_KEY);
-        } catch {}
+        // Do not prematurely wipe cached datasets while user session is active
+        const hasCached = loadCachedDatasets().length > 0;
+        if (!hasCached) {
+          setDatasets([]);
+          setActiveDatasetDetails(null);
+          setActiveId(null);
+          saveActiveId(null);
+        }
       }
     } catch {
       // Backend unauthenticated or network hiccup - DO NOT wipe local state!
@@ -309,11 +308,6 @@ export function useDatasets() {
   }, [datasets]);
 
   const clearAllDatasets = useCallback(async () => {
-    try {
-      await datasetService.purgeSessionStorage();
-    } catch {
-      // ignore
-    }
     setActiveId(null);
     saveActiveId(null);
     setActiveDatasetDetails(null);

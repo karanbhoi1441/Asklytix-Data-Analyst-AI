@@ -91,9 +91,7 @@ export const ConnectDataSourcePage: React.FC = () => {
     : 'SB';
 
   const handleLogout = async () => {
-    await clearAllDatasets();
-    logout();
-    navigate('/login');
+    await logout();
   };
 
   const handleLockedClick = () => {

@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import duckdb
 import pandas as pd
 import os
@@ -488,8 +488,7 @@ class AnalysisEngine:
                     f"• **Target {filter_col_label}s**: **{len(filter_entities)}** ({', '.join(filter_entities)})\n"
                     f"• **Total Unique {target_dim_label}s**: **{tot_unique_target}**\n"
                     f"• **Combined Transactions**: **{tot_combined_tx:,} rows** ({share_of_dataset}% of entire dataset)\n"
-                    f"• **Combined Revenue**: **{format_currency(tot_combined_rev)}**\n\n"
-                    f"• **Data View**: Showing the complete analytical breakdown table below."
+                    f"• **Combined Revenue**: **{format_currency(tot_combined_rev)}**"
                 )
 
                 top_entity_name = agg_rows[0][filter_col_label] if agg_rows else filter_entities[0]
@@ -563,8 +562,7 @@ class AnalysisEngine:
                     f"• **Matching Records**: **{match_cnt:,} rows** ({pct_share}% of {total_records:,} total records in dataset)\n"
                     f"• **Filter Applied**: `{primary_filter_col}` = **{ent_display}**\n"
                     f"{rev_line}"
-                    f"{qty_line}"
-                    f"• **Data View**: Showing the {len(filtered_rows)} matching records exclusively in the table below (no other entries included)."
+                    f"{qty_line}".rstrip()
                 )
 
                 return {
@@ -660,8 +658,7 @@ class AnalysisEngine:
                         f"The dataset **{dataset_name}** contains **{distinct_count} unique {col_label}s** across {total_records:,} total records:\n\n"
                         + "\n".join(items_bullets) + "\n\n"
                         f"• **Total Unique {col_label}s**: **{distinct_count}**\n"
-                        + freq_line
-                        + f"• **Data View**: Showing the distinct {col_label} list and breakdown in the table below."
+                        + freq_line.rstrip()
                     )
 
                     if is_all_one or is_all_equal:
@@ -777,11 +774,7 @@ class AnalysisEngine:
 
                     response_text = (
                         f"### Calculated **{agg_name} {col_display}**{filter_display} in **{dataset_name}**:\n\n"
-                        f"• **{agg_name} {col_display}**: **{val_formatted}**\n"
-                        f"• **Evaluated Records**: **{cnt_val:,} transactions** ({round(cnt_val / max(1, total_records) * 100, 1)}% of dataset)\n"
-                        f"{range_str}"
-                        f"{sum_str}"
-                        f"• **Data View**: Showing {len(sample_rows)} relevant records in the table below."
+                        f"• **{agg_name} {col_display}**: **{val_formatted}**"
                     )
 
                     return {
@@ -881,13 +874,7 @@ class AnalysisEngine:
 
                     summary_header = f"{'Lowest' if is_asc else 'Top'} {len(slice_rows)} {target_metric_col or 'records'}"
 
-                    response_text = (
-                        f"### {summary_header} in **{dataset_name}**:\n\n"
-                        f"• **Lead Entry**: **{top_ident}**{top_val_str}\n"
-                        + range_str +
-                        f"• **Evaluated Records**: {total_records:,} total rows across {total_cols} dimensions.\n"
-                        f"• **Data View**: The exact sorted records are loaded in the interactive table below."
-                    )
+                    response_text = f"### {summary_header} in **{dataset_name}**:"
 
                     con.close()
                     return {
@@ -955,9 +942,7 @@ class AnalysisEngine:
 
                         response_text = (
                             f"Here is the breakdown for **{dim_label}** in **{dataset_name}**:\n\n"
-                            f"• **Top Performer**: **{top_name}** ({metric_label}: **{top_val:,}**)\n"
-                            f"• **Evaluated Records**: {total_records:,} rows across {total_cols} dimensions.\n"
-                            f"• **Data View**: Grouped records are shown in the interactive table below."
+                            f"• **Top Performer**: **{top_name}** ({metric_label}: **{top_val:,}**)"
                         )
 
                         con.close()
@@ -1008,7 +993,6 @@ class AnalysisEngine:
         response_text = (
             f"### Analysis Overview for: **\"{raw_query}\"** on **{dataset_name}**:\n\n"
             + "\n".join([f"• {ins}" for ins in insights])
-            + "\n• **Data View**: A sample of active records is shown in the table below."
         )
 
         return {

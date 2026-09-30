@@ -66,21 +66,32 @@ export function useDashboard() {
     datasetService.getVisualizations(dsId)
       .then((res) => {
         if (res && res.visualizations && res.visualizations.length > 0) {
-          const savedWidgets: DashboardWidget[] = res.visualizations.map((item: SavedVisualizationItem) => ({
-            id: item.id,
-            type: 'sandbox_chart',
-            title: item.title,
-            colSpan: 4,
-            position: item.position,
-            imageUrl: item.image_url,
-            base64Image: item.base64_image,
-            html: item.html,
-            generatedCode: item.generated_code,
-            executionTimeMs: item.execution_time_ms,
-            columnsUsed: item.columns_used,
-            chartType: item.chart_type,
-            explanation: item.explanation
-          }));
+          const savedWidgets: DashboardWidget[] = res.visualizations.map((item: SavedVisualizationItem) => {
+            const chartData = item.data || item.chart_specification?.data || [];
+            return {
+              id: item.id,
+              type: (item.chart_type === 'kpi') ? 'kpi' : 'sandbox_chart',
+              title: item.title,
+              colSpan: 4,
+              position: item.position,
+              imageUrl: item.image_url,
+              base64Image: item.base64_image,
+              html: item.html,
+              generatedCode: item.generated_code,
+              executionTimeMs: item.execution_time_ms,
+              columnsUsed: item.columns_used,
+              chartType: item.chart_type,
+              explanation: item.explanation,
+              spec: item.chart_specification || {
+                title: item.title,
+                chart_type: item.chart_type,
+                data: chartData,
+                columns_used: item.columns_used,
+                interactive: true
+              },
+              data: chartData
+            };
+          });
           // Preserve existing non-sandbox or append
           setWidgets((prev) => {
             const nonSandbox = prev.filter(w => w.type !== 'sandbox_chart');

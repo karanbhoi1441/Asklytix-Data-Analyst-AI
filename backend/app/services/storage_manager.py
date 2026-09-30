@@ -6,7 +6,7 @@ from typing import Optional, List
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.db.models import Dataset, DatasetVersion
+from app.db.models import Dataset, DatasetVersion, SavedVisualization
 from app.services.analysis_engine import AnalysisEngine
 
 logger = logging.getLogger("asklytix.storage_manager")
@@ -61,6 +61,13 @@ class StorageManager:
                 # 3. Delete database records
                 db.delete(ds)
                 purged_datasets += 1
+
+            # 4. Delete all user saved visualizations upon logout
+            try:
+                purged_viz = db.query(SavedVisualization).filter(SavedVisualization.user_id == user_id).delete(synchronize_session=False)
+                logger.info(f"Purged {purged_viz} saved visualizations for user {user_id}")
+            except Exception as e:
+                logger.warning(f"Could not purge saved visualizations: {e}")
 
             db.commit()
             logger.info(f"Purged {purged_datasets} datasets and {purged_files} files for user {user_id}")

@@ -436,8 +436,14 @@ export const DashboardPage: React.FC = () => {
           columnsUsed: viz.columns_used,
           chartType: viz.chart_type,
           explanation: res.explanation,
-          spec: res.chart_specification || viz,
-          data: viz.data
+          spec: res.chart_specification || {
+            title: viz.title,
+            chart_type: viz.chart_type,
+            data: viz.data || res.chart_specification?.data || res.saved_item?.data,
+            columns_used: viz.columns_used,
+            interactive: true
+          },
+          data: viz.data || res.chart_specification?.data || res.saved_item?.data
         };
 
         // Append to workspace canvas (preserving previous visuals)
