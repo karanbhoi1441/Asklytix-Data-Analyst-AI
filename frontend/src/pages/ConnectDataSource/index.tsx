@@ -5,7 +5,7 @@ import {
   Database, MessageSquare, LogOut,
   CloudUpload, FolderOpen,
   ChevronDown, CheckCircle2, AlertCircle, Loader2,
-  Lock, Layers, Upload, Trash2
+  Layers, Upload, Trash2, Sparkles
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useDatasets } from '@/hooks/useDatasets';
@@ -21,7 +21,7 @@ const MAX_SIZE_BYTES = 500 * 1024 * 1024; // 500 MB
 export const ConnectDataSourcePage: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { setActiveDataset, activeDataset, deleteDataset, clearAllDatasets } = useDatasets();
+  const { setActiveDataset, activeDataset, deleteDataset, clearAllDatasets, loadSampleDataset } = useDatasets();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -35,11 +35,11 @@ export const ConnectDataSourcePage: React.FC = () => {
   } | null>(() => {
     if (activeDataset) {
       return {
-        name: `${activeDataset.name}.${activeDataset.format}`,
-        format: activeDataset.format.toUpperCase(),
-        size: activeDataset.sizeLabel,
-        rows: activeDataset.rows,
-        cols: activeDataset.columns
+        name: activeDataset.name ? `${activeDataset.name}.${activeDataset.format || 'csv'}` : 'Sales Performance 2026.csv',
+        format: (activeDataset.format || 'CSV').toUpperCase(),
+        size: activeDataset.sizeLabel || '2.3 MB',
+        rows: activeDataset.rows || 10000,
+        cols: activeDataset.columns || 13
       };
     }
     return null;
@@ -51,16 +51,15 @@ export const ConnectDataSourcePage: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [progressStage, setProgressStage] = useState('Uploading dataset...');
   const [errorMsg, setErrorMsg] = useState('');
-  const [lockedNotice, setLockedNotice] = useState(false);
 
   useEffect(() => {
     if (activeDataset) {
       setUploadedInfo({
-        name: `${activeDataset.name}.${activeDataset.format}`,
-        format: activeDataset.format.toUpperCase(),
-        size: activeDataset.sizeLabel,
-        rows: activeDataset.rows,
-        cols: activeDataset.columns
+        name: activeDataset.name ? `${activeDataset.name}.${activeDataset.format || 'csv'}` : 'Sales Performance 2026.csv',
+        format: (activeDataset.format || 'CSV').toUpperCase(),
+        size: activeDataset.sizeLabel || '2.3 MB',
+        rows: activeDataset.rows || 10000,
+        cols: activeDataset.columns || 13
       });
       setUploadStatus('success');
     } else {
@@ -92,11 +91,6 @@ export const ConnectDataSourcePage: React.FC = () => {
 
   const handleLogout = async () => {
     await logout();
-  };
-
-  const handleLockedClick = () => {
-    setLockedNotice(true);
-    setTimeout(() => setLockedNotice(false), 2500);
   };
 
   const simulateProcessing = useCallback(async (file: File) => {
@@ -177,15 +171,15 @@ export const ConnectDataSourcePage: React.FC = () => {
 
       {/* ── DESKTOP LEFT SIDEBAR (Hidden on mobile < md) ───────────────── */}
       <aside
-        className="hidden md:flex w-[190px] lg:w-[220px] shrink-0 flex-col border-r justify-between backdrop-blur-xl"
-        style={{ background: 'rgba(6, 11, 23, 0.75)', borderColor: 'rgba(30, 58, 138, 0.3)' }}
+        className="hidden md:flex w-[190px] lg:w-[220px] shrink-0 flex-col border-r justify-between relative z-20 shadow-2xl"
+        style={{ background: '#070d1a', borderColor: '#1e293b' }}
       >
         {/* Top Logo & Branding */}
         <div>
           <div
             onClick={() => navigate('/')}
-            className="flex items-center gap-2.5 px-4 py-3.5 border-b cursor-pointer group select-none transition-colors hover:bg-slate-900/40"
-            style={{ borderColor: '#1a2744' }}
+            className="flex items-center gap-2.5 px-4 py-3.5 border-b cursor-pointer group select-none transition-colors hover:bg-slate-900/60"
+            style={{ borderColor: '#1e293b' }}
           >
             <div className="relative flex items-center justify-center shrink-0">
               <div className="absolute inset-0 bg-cyan-500/25 rounded-full blur-md opacity-60 group-hover:opacity-100 transition-opacity" />
@@ -213,81 +207,41 @@ export const ConnectDataSourcePage: React.FC = () => {
               <span className="text-sm font-bold" style={{ color: '#60a5fa' }}>Data Source</span>
             </div>
 
-            {/* Locked/Unlocked: Data Health & Clean */}
-            {isDatasetConnected ? (
-              <motion.div
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer select-none text-slate-300 hover:bg-slate-900 transition-all border border-transparent hover:border-cyan-500/30"
-                whileHover={{ background: '#0d1a2e' }}
-                transition={{ duration: 0.15 }}
-                onClick={() => navigate('/ask')}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <MessageSquare className="w-4 h-4 text-cyan-400 shrink-0" />
-                  <span className="text-sm font-medium text-slate-200 truncate">Data Health & Clean</span>
-                </div>
-                <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] shrink-0" />
-              </motion.div>
-            ) : (
-              <div
-                onClick={handleLockedClick}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl select-none text-slate-600 cursor-not-allowed opacity-60 hover:opacity-80 transition-all"
-                title="Upload a dataset first to unlock Data Health & Clean"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <MessageSquare className="w-4 h-4 text-slate-600 shrink-0" />
-                  <span className="text-sm font-medium text-slate-600 truncate">Data Health & Clean</span>
-                </div>
-                <Lock className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+            {/* Navigation: Data Health & Clean */}
+            <motion.div
+              className="flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer select-none text-slate-300 hover:bg-slate-900 transition-all border border-transparent hover:border-cyan-500/30"
+              whileHover={{ background: '#0d1a2e' }}
+              transition={{ duration: 0.15 }}
+              onClick={() => navigate('/ask')}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <MessageSquare className="w-4 h-4 text-cyan-400 shrink-0" />
+                <span className="text-sm font-medium text-slate-200 truncate">Data Health & Clean</span>
               </div>
-            )}
+              <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee] shrink-0" />
+            </motion.div>
 
-            {/* Locked/Unlocked: Dashboard */}
-            {isDatasetConnected ? (
-              <motion.div
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer select-none text-slate-300 hover:bg-slate-900 transition-all border border-transparent hover:border-purple-500/30"
-                whileHover={{ background: '#0d1a2e' }}
-                transition={{ duration: 0.15 }}
-                onClick={() => navigate('/dashboard')}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Layers className="w-4 h-4 text-purple-400 shrink-0" />
-                  <span className="text-sm font-medium text-slate-200 truncate">Analysis Chat</span>
-                </div>
-              </motion.div>
-            ) : (
-              <div
-                onClick={handleLockedClick}
-                className="flex items-center justify-between px-3 py-2.5 rounded-xl select-none text-slate-600 cursor-not-allowed opacity-60 hover:opacity-80 transition-all"
-                title="Upload a dataset first to unlock analysis chat"
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Layers className="w-4 h-4 text-slate-600 shrink-0" />
-                  <span className="text-sm font-medium text-slate-600 truncate">Analysis Chat</span>
-                </div>
-                <Lock className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+            {/* Navigation: Analysis Chat */}
+            <motion.div
+              className="flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer select-none text-slate-300 hover:bg-slate-900 transition-all border border-transparent hover:border-purple-500/30"
+              whileHover={{ background: '#0d1a2e' }}
+              transition={{ duration: 0.15 }}
+              onClick={() => navigate('/dashboard')}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Layers className="w-4 h-4 text-purple-400 shrink-0" />
+                <span className="text-sm font-medium text-slate-200 truncate">Analysis Chat</span>
               </div>
-            )}
-
-            {/* Locked Notice Message */}
-            <AnimatePresence>
-              {lockedNotice && (
-                <motion.div
-                  initial={{ opacity: 0, y: -4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  className="mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[10px] text-center font-semibold"
-                >
-                  🔒 Upload a dataset first to unlock analysis & chat!
-                </motion.div>
-              )}
-            </AnimatePresence>
+              <span className="w-2 h-2 rounded-full bg-purple-400 shadow-[0_0_8px_#a855f7] shrink-0" />
+            </motion.div>
           </nav>
         </div>
 
         {/* User Card */}
         <div
-          className="mx-3 mb-4 px-3 py-3 rounded-xl flex items-center gap-2.5 cursor-pointer border shrink-0"
-          style={{ background: '#0a1628', borderColor: '#1a2744' }}
+          onClick={() => navigate('/settings')}
+          className="mx-3 mb-4 px-3 py-3 rounded-xl flex items-center gap-2.5 cursor-pointer border shrink-0 hover:border-slate-700 transition-all"
+          style={{ background: '#0a1628', borderColor: '#1e293b' }}
         >
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-extrabold shrink-0 text-white"
@@ -296,8 +250,8 @@ export const ConnectDataSourcePage: React.FC = () => {
             {initials}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-white truncate leading-tight">{user?.name ?? 'Karan Bhoi'}</p>
-            <p className="text-[10px] text-slate-500 truncate leading-tight font-mono">{user?.email ?? 'karan@example.com'}</p>
+            <p className="text-xs font-bold text-white truncate leading-tight">{user?.name || 'Karan Bhoi'}</p>
+            <p className="text-[10px] text-slate-400 truncate leading-tight font-mono">{user?.email || 'karanbhoi1441@gmail.com'}</p>
           </div>
           <ChevronDown className="w-3.5 h-3.5 text-slate-500 shrink-0" />
         </div>
@@ -306,10 +260,10 @@ export const ConnectDataSourcePage: React.FC = () => {
       {/* ── MAIN AREA ─────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 w-full">
 
-        {/* ── TOP HEADER (Transparent for all screen sizes) ─────────────── */}
+        {/* ── TOP HEADER (Solid & Clean) ─────────────── */}
         <header
-          className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b shrink-0 z-20 backdrop-blur-sm"
-          style={{ borderColor: 'rgba(30, 58, 138, 0.25)', background: 'transparent' }}
+          className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-b shrink-0 z-20 shadow-sm"
+          style={{ borderColor: '#1e293b', background: '#070d1a' }}
         >
           {/* Mobile Brand Logo & Header */}
           <div className="flex items-center gap-2.5 min-w-0">
@@ -491,31 +445,53 @@ export const ConnectDataSourcePage: React.FC = () => {
                         </p>
                       </div>
 
-                      {/* EXACTLY TWO CLEAN OPTIONS: 1. UPLOAD FILE & 2. DELETE UPLOADED FILE */}
-                      <div className="flex flex-wrap items-center justify-center gap-3 mt-3 w-full max-w-md px-2">
-                        {/* Option 1: Upload File */}
+                      {/* DIRECT ACTION BUTTONS: PROCEED TO WORKSPACE OR UPLOAD/REMOVE */}
+                      <div className="flex flex-wrap items-center justify-center gap-2.5 mt-3 w-full max-w-lg px-2">
+                        {/* Option: Proceed to Data Health & Clean */}
                         <motion.button
-                          whileHover={{ scale: 1.03, boxShadow: '0 0 25px rgba(59,130,246,0.45)' }}
+                          whileHover={{ scale: 1.03, boxShadow: '0 0 25px rgba(6,182,212,0.45)' }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={() => navigate('/ask')}
+                          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-cyan-600 via-blue-600 to-indigo-600 cursor-pointer shadow-lg shadow-cyan-500/25 transition-all"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          <span>Data Health & Clean</span>
+                        </motion.button>
+
+                        {/* Option: Open Analysis Chat */}
+                        <motion.button
+                          whileHover={{ scale: 1.03, boxShadow: '0 0 25px rgba(168,85,247,0.45)' }}
+                          whileTap={{ scale: 0.97 }}
+                          onClick={() => navigate('/dashboard')}
+                          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 cursor-pointer shadow-lg shadow-purple-500/25 transition-all"
+                        >
+                          <Layers className="w-4 h-4" />
+                          <span>Analysis Chat</span>
+                        </motion.button>
+
+                        {/* Option: Upload File */}
+                        <motion.button
+                          whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.97 }}
                           onClick={() => {
                             setUploadStatus('idle');
                             setTimeout(() => inputRef.current?.click(), 100);
                           }}
-                          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 via-cyan-500 to-indigo-600 cursor-pointer shadow-lg shadow-cyan-500/25 transition-all"
+                          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-slate-900/90 border border-slate-700 hover:border-slate-500 cursor-pointer transition-all"
                         >
-                          <Upload className="w-4 h-4" />
+                          <Upload className="w-3.5 h-3.5" />
                           <span>Upload File</span>
                         </motion.button>
 
-                        {/* Option 2: Delete Uploaded File */}
+                        {/* Option: Delete Uploaded File */}
                         <motion.button
-                          whileHover={{ scale: 1.03, boxShadow: '0 0 25px rgba(244,63,94,0.35)' }}
+                          whileHover={{ scale: 1.02 }}
                           whileTap={{ scale: 0.97 }}
                           onClick={handleRemoveDataset}
-                          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-rose-300 hover:text-white bg-rose-500/15 hover:bg-rose-600/30 border border-rose-500/40 hover:border-rose-500 cursor-pointer shadow-md transition-all"
+                          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-600/30 border border-rose-500/30 hover:border-rose-500 cursor-pointer transition-all"
                         >
-                          <Trash2 className="w-4 h-4 text-rose-400" />
-                          <span>Delete Uploaded File</span>
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Remove</span>
                         </motion.button>
                       </div>
                     </motion.div>
@@ -580,6 +556,20 @@ export const ConnectDataSourcePage: React.FC = () => {
                       >
                         <FolderOpen className="w-4 h-4" />
                         Browse Files
+                      </motion.button>
+
+                      <motion.button
+                        type="button"
+                        className="mt-2 flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 hover:border-cyan-500/60 cursor-pointer shadow-md transition-all"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={e => {
+                          e.stopPropagation();
+                          loadSampleDataset();
+                        }}
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Explore Sample Data</span>
                       </motion.button>
                     </motion.div>
                   )}

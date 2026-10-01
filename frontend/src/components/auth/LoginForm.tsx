@@ -2,16 +2,18 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
+import { GoogleLoginModal } from '@/components/auth/GoogleLoginModal';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react';
 
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
-  const { login, isLoading, error: authError } = useAuth();
+  const { login, googleLogin, isLoading, error: authError } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
 
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
 
@@ -48,15 +50,12 @@ export const LoginForm: React.FC = () => {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    try {
-      localStorage.clear();
-      sessionStorage.clear();
-      await login({ email: 'google.user@asklytix.ai', password: 'Demo1234!' });
-      navigate('/connect');
-    } catch {
-      // Handled via useAuth error state
-    }
+  const handleGoogleSuccess = async (data: { email: string; name?: string }) => {
+    localStorage.clear();
+    sessionStorage.clear();
+    await googleLogin(data);
+    setIsGoogleModalOpen(false);
+    navigate('/connect');
   };
 
   return (
@@ -201,7 +200,7 @@ export const LoginForm: React.FC = () => {
         {/* Google Social Login */}
         <button
           type="button"
-          onClick={handleGoogleLogin}
+          onClick={() => setIsGoogleModalOpen(true)}
           disabled={isLoading}
           className="w-full py-2.5 px-4 rounded-xl bg-[#131826] hover:bg-[#181f32] border border-slate-800/90 text-xs sm:text-sm font-medium text-slate-200 flex items-center justify-center gap-2.5 cursor-pointer transition-all active:scale-[0.99]"
         >
@@ -237,6 +236,14 @@ export const LoginForm: React.FC = () => {
           </Link>
         </div>
       </motion.div>
+
+      {/* Google Real Email Connect Modal */}
+      <GoogleLoginModal
+        isOpen={isGoogleModalOpen}
+        onClose={() => setIsGoogleModalOpen(false)}
+        onSuccess={handleGoogleSuccess}
+        isLoading={isLoading}
+      />
 
       {/* Page Footer Credits */}
       <div className="mt-8 text-center space-y-1 text-[11px] text-slate-400 font-sans">

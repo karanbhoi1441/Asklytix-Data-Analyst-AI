@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import type { DatasetPreviewRow } from '@/types/datasets';
+import { INITIAL_MOCK_DATASETS } from '@/data/mockDatasets';
 import { CodeInspectorModal, type CodeRecordDetails } from '@/components/analysis/CodeInspectorModal';
 
 interface ChatMessage {
@@ -36,22 +37,8 @@ interface ChatMessage {
 export const AskAIPage: React.FC = () => {
   const navigate = useNavigate();
   const { activeDataset, datasets } = useDatasets();
-  const rawDataset = activeDataset || (datasets.length > 0 ? datasets[0] : null);
-  const dataset = rawDataset || {
-    id: 'ds-placeholder',
-    name: 'Active Dataset',
-    format: 'csv' as const,
-    sizeBytes: 0,
-    sizeLabel: '0 KB',
-    rows: 0,
-    columns: 0,
-    uploadedAt: new Date().toISOString(),
-    status: 'active' as const,
-    isActive: true,
-    columnDefs: [],
-    previewRows: [],
-    quality: { score: 78, completeness: 78, consistency: 80, uniqueness: 85, validity: 78, issues: [] }
-  };
+  const rawDataset = activeDataset || (datasets.length > 0 ? datasets[0] : INITIAL_MOCK_DATASETS[0]);
+  const dataset = rawDataset || INITIAL_MOCK_DATASETS[0];
 
   // Active Tab: 'showing' | 'clean'
   const [activeTab, setActiveTab] = useState<'showing' | 'clean'>('showing');
@@ -864,16 +851,30 @@ export const AskAIPage: React.FC = () => {
           </p>
         </div>
 
-        <motion.button
-          whileHover={{ scale: 1.03, boxShadow: '0 0 25px rgba(6,182,212,0.45)' }}
-          whileTap={{ scale: 0.97 }}
-          onClick={() => navigate('/connect')}
-          className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 via-cyan-500 to-purple-600 shadow-xl cursor-pointer"
-        >
-          <UploadCloud className="w-4 h-4" />
-          <span>Upload Dataset in Data Source</span>
-          <ArrowRight className="w-4 h-4" />
-        </motion.button>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <motion.button
+            whileHover={{ scale: 1.03, boxShadow: '0 0 25px rgba(6,182,212,0.45)' }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate('/connect')}
+            className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 via-cyan-500 to-purple-600 shadow-xl cursor-pointer"
+          >
+            <UploadCloud className="w-4 h-4" />
+            <span>Upload Dataset in Data Source</span>
+            <ArrowRight className="w-4 h-4" />
+          </motion.button>
+
+          <button
+            onClick={() => {
+              const sample = INITIAL_MOCK_DATASETS[0];
+              localStorage.setItem('asklytix_active_dataset_id', sample.id);
+              window.location.reload();
+            }}
+            className="flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 cursor-pointer transition-all"
+          >
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+            <span>Load Sample Data</span>
+          </button>
+        </div>
       </div>
     );
   }

@@ -6,6 +6,7 @@ import type { User, LoginCredentials, SignupCredentials, AuthState } from '@/typ
 interface AuthContextType extends AuthState {
   login: (credentials: LoginCredentials) => Promise<User>;
   signup: (credentials: SignupCredentials) => Promise<User>;
+  googleLogin: (data: { email: string; name?: string; credential?: string }) => Promise<User>;
   forgotPassword: (email: string) => Promise<boolean>;
   logout: () => Promise<void>;
 }
@@ -85,6 +86,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  const googleLogin = useCallback(async (data: { email: string; name?: string; credential?: string }): Promise<User> => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    try {
+      const user = await authService.googleAuth(data);
+      setState({
+        user,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null
+      });
+      return user;
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'Google authentication failed';
+      setState((prev) => ({ ...prev, isLoading: false, error: errorMsg }));
+      throw new Error(errorMsg);
+    }
+  }, []);
+
   const forgotPassword = useCallback(async (email: string): Promise<boolean> => {
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
     try {
@@ -122,7 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, signup, forgotPassword, logout }}>
+    <AuthContext.Provider value={{ ...state, login, signup, googleLogin, forgotPassword, logout }}>
       {children}
     </AuthContext.Provider>
   );

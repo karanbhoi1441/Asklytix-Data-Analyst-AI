@@ -553,16 +553,29 @@ export const DashboardPage: React.FC = () => {
             </p>
           </div>
 
-          <motion.button
-            whileHover={{ scale: 1.03, boxShadow: '0 0 25px rgba(6,182,212,0.45)' }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => navigate('/connect')}
-            className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 via-cyan-500 to-purple-600 shadow-xl cursor-pointer"
-          >
-            <Layers className="w-4 h-4" />
-            <span>Connect & Upload Dataset</span>
-            <ChevronRight className="w-4 h-4" />
-          </motion.button>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <motion.button
+              whileHover={{ scale: 1.03, boxShadow: '0 0 25px rgba(6,182,212,0.45)' }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => navigate('/connect')}
+              className="flex items-center gap-2.5 px-6 py-3 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 via-cyan-500 to-purple-600 shadow-xl cursor-pointer"
+            >
+              <Layers className="w-4 h-4" />
+              <span>Connect & Upload Dataset</span>
+              <ChevronRight className="w-4 h-4" />
+            </motion.button>
+
+            <button
+              onClick={() => {
+                localStorage.setItem('asklytix_active_dataset_id', 'ds-001');
+                window.location.reload();
+              }}
+              className="flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 cursor-pointer transition-all"
+            >
+              <Sparkles className="w-4 h-4 text-cyan-400" />
+              <span>Load Sample Dashboard</span>
+            </button>
+          </div>
         </div>
       </PageContainer>
     );

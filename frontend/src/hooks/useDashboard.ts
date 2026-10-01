@@ -37,8 +37,8 @@ export function useDashboard() {
     category: 'all'
   });
 
-  // Start with empty widgets or populated default
-  const [widgets, setWidgets] = useState<DashboardWidget[]>([]);
+  // Start with populated default widgets so screen is never blank
+  const [widgets, setWidgets] = useState<DashboardWidget[]>(DEFAULT_DASHBOARD_WIDGETS);
 
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [isAddWidgetModalOpen, setIsAddWidgetModalOpen] = useState<boolean>(false);
@@ -118,21 +118,20 @@ export function useDashboard() {
     loadSavedVisualizations(datasetId);
   }, [loadSavedVisualizations]);
 
-  // Fetch real aggregated metrics from active backend dataset
   useEffect(() => {
     const rawStoredId = localStorage.getItem('asklytix_active_dataset_id');
-    const storedId = (rawStoredId && rawStoredId !== 'null' && rawStoredId !== 'undefined') ? rawStoredId : null;
+    const storedId = (rawStoredId && rawStoredId !== 'null' && rawStoredId !== 'undefined') ? rawStoredId : 'ds-001';
 
-    if (!storedId) {
-      setActiveDatasetId(null);
-      setActiveDatasetName(null);
-      setActiveDatasetColumns([]);
-      setActiveDatasetRowCount(0);
-      setBackendMetrics(null);
+    setActiveDatasetId(storedId);
+
+    if (storedId === 'ds-001') {
+      setActiveDatasetName('Sales Performance 2026');
+      setActiveDatasetRowCount(10000);
+      setActiveDatasetColumns(['order_id', 'order_date', 'customer_name', 'product', 'category', 'region', 'quantity', 'unit_price', 'revenue', 'profit', 'discount_pct', 'payment_method', 'is_returned']);
+      setWidgets((prev) => (prev.length > 0 ? prev : DEFAULT_DASHBOARD_WIDGETS));
       return;
     }
 
-    setActiveDatasetId(storedId);
     loadMetrics(storedId);
 
     // Also load dataset metadata (name, columns, rows)

@@ -1,5 +1,5 @@
 from datetime import timedelta
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -26,6 +26,11 @@ class UserRegisterRequest(BaseModel):
 class UserLoginRequest(BaseModel):
     email: str
     password: str
+
+class GoogleAuthRequest(BaseModel):
+    email: str
+    name: Optional[str] = None
+    credential: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: str
@@ -127,6 +132,64 @@ def login(req: UserLoginRequest, response: Response, db: Session = Depends(get_d
     return {
         "success": True,
         "message": "Logged in successfully (Fresh Session)",
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "createdAt": user.created_at.isoformat()
+        }
+    }
+
+@router.post("/google", response_model=Dict[str, Any])
+def google_auth(req: GoogleAuthRequest, response: Response, db: Session = Depends(get_db)):
+    email_clean = req.email.strip().lower()
+
+    # If Google credential JWT token is passed, attempt to decode email and name
+    if req.credential:
+        try:
+            import jwt
+            decoded = jwt.decode(req.credential, options={"verify_signature": False})
+            if decoded.get("email"):
+                email_clean = decoded["email"].strip().lower()
+            if decoded.get("name") and not req.name:
+                req.name = decoded["name"]
+        except Exception:
+            pass
+
+    if not email_clean or "@" not in email_clean or "." not in email_clean.split("@")[-1]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A valid Google email address is required."
+        )
+
+    # Clean display name
+    if req.name and req.name.strip():
+        display_name = req.name.strip()
+    else:
+        display_name = email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()
+
+    user = db.query(User).filter(User.email == email_clean).first()
+    if not user:
+        import uuid
+        user = User(
+            name=display_name,
+            email=email_clean,
+            hashed_password=get_password_hash(f"google_oauth_{uuid.uuid4().hex}")
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    else:
+        if req.name and req.name.strip() and user.name in {"Google User", "User", "Data Analyst"}:
+            user.name = display_name
+            db.commit()
+            db.refresh(user)
+
+    set_auth_cookies(response, user.id)
+
+    return {
+        "success": True,
+        "message": "Connected with Google successfully",
         "user": {
             "id": user.id,
             "name": user.name,

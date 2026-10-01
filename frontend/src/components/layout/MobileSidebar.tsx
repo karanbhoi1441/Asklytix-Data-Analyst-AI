@@ -40,7 +40,7 @@ export const MobileSidebar: React.FC = () => {
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 w-72 h-full bg-[#050914]/85 backdrop-blur-2xl border-r border-slate-800/60 flex flex-col justify-between shadow-2xl overflow-hidden"
+            className="relative z-10 w-72 h-full bg-[#070d1a] border-r border-slate-800 flex flex-col justify-between shadow-2xl overflow-hidden"
           >
             {/* Drawer Header */}
             <div className="h-16 px-4 flex items-center justify-between border-b border-slate-800/80">

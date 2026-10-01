@@ -13,12 +13,12 @@ export const Sidebar: React.FC = () => {
   const { user } = useAuth();
 
   const displayName = user?.name || 'Karan Bhoi';
-  const displayRole = 'Pro Tier';
+  const displayEmail = user?.email || 'karanbhoi1441@gmail.com';
 
   return (
     <aside
       className={cn(
-        'fixed top-0 left-0 z-40 h-screen bg-[#050914]/65 backdrop-blur-xl border-r border-slate-800/60 transition-all duration-300 flex flex-col justify-between select-none shadow-2xl',
+        'fixed top-0 left-0 z-40 h-screen bg-[#070d1a] border-r border-slate-800 transition-all duration-300 flex flex-col justify-between select-none shadow-2xl',
         isCollapsed ? 'w-20' : 'w-64'
       )}
     >
@@ -48,11 +48,11 @@ export const Sidebar: React.FC = () => {
       <SidebarNav isCollapsed={isCollapsed} />
 
       {/* Bottom Profile Widget & Creator Links */}
-      <div className="p-3 border-t border-slate-800/80 shrink-0 bg-slate-950/60 space-y-2">
+      <div className="p-3 border-t border-slate-800/80 shrink-0 bg-[#0a1020] space-y-2">
         <div
           onClick={() => navigate('/settings')}
           className={cn(
-            'flex items-center gap-3 p-2 rounded-xl hover:bg-slate-900/80 cursor-pointer transition-colors border border-transparent hover:border-slate-800',
+            'flex items-center gap-3 p-2 rounded-xl hover:bg-slate-900 cursor-pointer transition-colors border border-transparent hover:border-slate-800',
             isCollapsed && 'justify-center p-1'
           )}
         >
@@ -66,7 +66,7 @@ export const Sidebar: React.FC = () => {
           {!isCollapsed && (
             <div className="flex flex-col min-w-0 overflow-hidden">
               <span className="text-xs font-bold text-slate-200 truncate">{displayName}</span>
-              <span className="text-[10px] text-slate-400 font-mono truncate">{displayRole}</span>
+              <span className="text-[10px] text-slate-400 font-mono truncate">{displayEmail}</span>
             </div>
           )}
         </div>

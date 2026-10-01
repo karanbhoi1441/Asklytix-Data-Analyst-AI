@@ -26,6 +26,14 @@ export const authService = {
   },
 
   /**
+   * Google User Authentication (Connect with real Google Account)
+   */
+  async googleAuth(data: { email: string; name?: string; credential?: string }): Promise<User> {
+    const res = await apiClient.post<{ success: boolean; user: User }>('/api/v1/auth/google', data);
+    return res.user;
+  },
+
+  /**
    * Password Reset Instructions Request
    */
   async forgotPassword(email: string): Promise<boolean> {

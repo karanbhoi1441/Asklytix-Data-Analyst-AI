@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Dataset, UploadQueueItem, FileFormat, SortOption } from '@/types/datasets';
-import { SUPPORTED_FORMATS, MAX_FILE_SIZE_BYTES } from '@/data/mockDatasets';
+import { SUPPORTED_FORMATS, MAX_FILE_SIZE_BYTES, INITIAL_MOCK_DATASETS } from '@/data/mockDatasets';
 import { datasetService } from '@/services/datasetService';
 
 const ACTIVE_ID_KEY = 'asklytix_active_dataset_id';
@@ -15,10 +15,10 @@ function formatBytes(bytes: number): string {
 function loadActiveId(): string | null {
   try {
     const val = localStorage.getItem(ACTIVE_ID_KEY);
-    if (!val || val === 'null' || val === 'undefined') return null;
+    if (!val || val === 'null' || val === 'undefined') return INITIAL_MOCK_DATASETS[0].id;
     return val;
   } catch {
-    return null;
+    return INITIAL_MOCK_DATASETS[0].id;
   }
 }
 
@@ -40,20 +40,22 @@ const CACHED_ACTIVE_KEY = 'asklytix_cached_active_dataset';
 function loadCachedDatasets(): Dataset[] {
   try {
     const val = localStorage.getItem(CACHED_DATASETS_KEY);
-    if (!val) return [];
-    return JSON.parse(val);
+    if (!val) return INITIAL_MOCK_DATASETS;
+    const parsed = JSON.parse(val);
+    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_MOCK_DATASETS;
   } catch {
-    return [];
+    return INITIAL_MOCK_DATASETS;
   }
 }
 
 function loadCachedActiveDataset(): Dataset | null {
   try {
     const val = localStorage.getItem(CACHED_ACTIVE_KEY);
-    if (!val) return null;
-    return JSON.parse(val);
+    if (!val) return INITIAL_MOCK_DATASETS[0];
+    const parsed = JSON.parse(val);
+    return parsed && parsed.id ? parsed : INITIAL_MOCK_DATASETS[0];
   } catch {
-    return null;
+    return INITIAL_MOCK_DATASETS[0];
   }
 }
 
@@ -134,7 +136,7 @@ export function useDatasets() {
     }
   }, [activeId]);
 
-  const activeDataset = activeDatasetDetails || (activeId ? datasets.find(d => d.id === activeId) : null) || null;
+  const activeDataset = activeDatasetDetails || (activeId ? datasets.find(d => d.id === activeId) : null) || (datasets.length > 0 ? datasets[0] : INITIAL_MOCK_DATASETS[0]);
 
   // ── Computed filtered+sorted dataset list ──
   const filteredDatasets = datasets
@@ -322,6 +324,18 @@ export function useDatasets() {
     } catch {}
   }, []);
 
+  const loadSampleDataset = useCallback(() => {
+    const sample = INITIAL_MOCK_DATASETS[0];
+    setDatasets([sample]);
+    setActiveId(sample.id);
+    setActiveDatasetDetails(sample);
+    saveActiveId(sample.id);
+    try {
+      localStorage.setItem(CACHED_DATASETS_KEY, JSON.stringify([sample]));
+      localStorage.setItem(CACHED_ACTIVE_KEY, JSON.stringify(sample));
+    } catch {}
+  }, []);
+
   return {
     datasets,
     filteredDatasets,
@@ -346,6 +360,7 @@ export function useDatasets() {
     duplicateDataset,
     getDatasetById,
     clearAllDatasets,
+    loadSampleDataset,
     refreshDatasets,
   };
 }

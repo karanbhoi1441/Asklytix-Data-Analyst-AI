@@ -5,19 +5,21 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { PasswordStrength } from './PasswordStrength';
 import { SocialLoginButton } from './SocialLoginButton';
+import { GoogleLoginModal } from './GoogleLoginModal';
 import { useAuth } from '@/hooks/useAuth';
 import { UserPlus, ArrowRight, AlertCircle } from 'lucide-react';
 import { fadeUp } from '@/utils/animations';
 
 export const SignupForm: React.FC = () => {
   const navigate = useNavigate();
-  const { signup, isLoading, error: authError } = useAuth();
+  const { signup, googleLogin, isLoading, error: authError } = useAuth();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
 
   const [errors, setErrors] = useState<{
     name?: string;
@@ -73,18 +75,12 @@ export const SignupForm: React.FC = () => {
     }
   };
 
-  const handleGoogleSignup = async () => {
-    try {
-      await signup({
-        name: 'Google User',
-        email: 'google.user@asklytix.ai',
-        password: 'google_oauth_mock_password',
-        termsAccepted: true
-      });
-      navigate('/connect');
-    } catch {
-      // Handled via useAuth error state
-    }
+  const handleGoogleSuccess = async (data: { email: string; name?: string }) => {
+    localStorage.clear();
+    sessionStorage.clear();
+    await googleLogin(data);
+    setIsGoogleModalOpen(false);
+    navigate('/connect');
   };
 
   return (
@@ -227,7 +223,15 @@ export const SignupForm: React.FC = () => {
       </div>
 
       {/* Google Button */}
-      <SocialLoginButton onClick={handleGoogleSignup} isLoading={isLoading} />
+      <SocialLoginButton onClick={() => setIsGoogleModalOpen(true)} isLoading={isLoading} />
+
+      {/* Google Real Email Connect Modal */}
+      <GoogleLoginModal
+        isOpen={isGoogleModalOpen}
+        onClose={() => setIsGoogleModalOpen(false)}
+        onSuccess={handleGoogleSuccess}
+        isLoading={isLoading}
+      />
 
       {/* Sign In Link */}
       <div className="pt-2 text-center text-xs text-slate-400">
