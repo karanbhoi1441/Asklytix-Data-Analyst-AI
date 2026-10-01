@@ -14,11 +14,29 @@ interface AuthContextType extends AuthState {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    isAuthenticated: false,
-    isLoading: true,
-    error: null
+  const [state, setState] = useState<AuthState>(() => {
+    try {
+      const stored = localStorage.getItem('asklytix_auth_user');
+      if (stored) {
+        const u = JSON.parse(stored);
+        if (u && u.email) {
+          return {
+            user: u,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          };
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return {
+      user: null,
+      isAuthenticated: false,
+      isLoading: true,
+      error: null,
+    };
   });
 
   useEffect(() => {

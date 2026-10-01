@@ -76,8 +76,6 @@ export const SignupForm: React.FC = () => {
   };
 
   const handleGoogleSuccess = async (data: { email: string; name?: string }) => {
-    localStorage.clear();
-    sessionStorage.clear();
     await googleLogin(data);
     setIsGoogleModalOpen(false);
     navigate('/connect');

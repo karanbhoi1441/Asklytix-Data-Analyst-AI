@@ -104,10 +104,11 @@ def login(req: UserLoginRequest, response: Response, db: Session = Depends(get_d
     email_clean = req.email.strip().lower()
     user = db.query(User).filter(User.email == email_clean).first()
 
-    # Auto-seed demo account if needed
-    if not user and email_clean in {"demo@asklytix.com", "google.user@asklytix.ai", "analyst@asklytix.ai"}:
+    # Auto-seed account if needed (supports Google and quick real email connect)
+    if not user:
+        name = email_clean.split("@")[0].replace(".", " ").replace("_", " ").title()
         user = User(
-            name="Data Analyst" if "demo" in email_clean or "analyst" in email_clean else "Google User",
+            name=name,
             email=email_clean,
             hashed_password=get_password_hash(req.password or "Demo1234!")
         )

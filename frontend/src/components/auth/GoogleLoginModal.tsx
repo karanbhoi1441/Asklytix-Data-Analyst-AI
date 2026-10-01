@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Mail, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
+import { X, Mail, User, ShieldCheck, Sparkles } from 'lucide-react';
 
 interface GoogleLoginModalProps {
   isOpen: boolean;
@@ -15,44 +15,41 @@ export const GoogleLoginModal: React.FC<GoogleLoginModalProps> = ({
   onSuccess,
   isLoading,
 }) => {
-  const [email, setEmail] = useState('');
-  const [name, setName] = useState('');
+  // Read saved email and name from storage for quick responsive login
+  const [email, setEmail] = useState(() => {
+    return localStorage.getItem('asklytix_user_email') || 'karanbhoi1441@gmail.com';
+  });
+  const [name, setName] = useState(() => {
+    return localStorage.getItem('asklytix_user_name') || 'Karan Bhoi';
+  });
   const [error, setError] = useState('');
-  const [selectedQuickAccount, setSelectedQuickAccount] = useState<string | null>(null);
 
-  // Quick preset accounts for convenience
-  const defaultAccounts = [
-    {
-      name: 'Karan Bhoi',
-      email: 'karanbhoi1441@gmail.com',
-      avatarColor: 'from-blue-600 to-indigo-600',
-      initials: 'KB',
-    },
-  ];
-
-  const handleSelectQuickAccount = async (accountEmail: string, accountName: string) => {
-    setSelectedQuickAccount(accountEmail);
-    setError('');
-    try {
-      await onSuccess({ email: accountEmail, name: accountName });
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Google connection failed');
-      setSelectedQuickAccount(null);
+  useEffect(() => {
+    if (isOpen) {
+      setError('');
+      const savedEmail = localStorage.getItem('asklytix_user_email');
+      const savedName = localStorage.getItem('asklytix_user_name');
+      if (savedEmail) setEmail(savedEmail);
+      if (savedName) setName(savedName);
     }
-  };
+  }, [isOpen]);
 
-  const handleCustomSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanEmail = email.trim();
+    const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
       setError('Please enter a valid Google or Gmail address.');
       return;
     }
+
     setError('');
     try {
-      await onSuccess({ email: cleanEmail, name: name.trim() || undefined });
+      await onSuccess({
+        email: cleanEmail,
+        name: name.trim() || undefined,
+      });
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Google connection failed');
+      setError(err instanceof Error ? err.message : 'Login failed');
     }
   };
 
@@ -69,21 +66,20 @@ export const GoogleLoginModal: React.FC<GoogleLoginModalProps> = ({
             className="fixed inset-0 bg-black/80 backdrop-blur-md"
           />
 
-          {/* Modal Container */}
+          {/* Modal Card */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            initial={{ opacity: 0, scale: 0.95, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 15 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="relative w-full max-w-md bg-[#0a0f1d] border border-slate-700/80 rounded-2xl shadow-2xl p-6 sm:p-7 z-10 overflow-hidden text-left"
+            exit={{ opacity: 0, scale: 0.95, y: 12 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="relative w-full max-w-[400px] bg-[#070d1a] border border-slate-700 rounded-2xl shadow-2xl p-6 sm:p-7 z-10 overflow-hidden text-left"
           >
-            {/* Top Google Accent Line */}
+            {/* Top Google Colors Accent Line */}
             <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-red-500 via-amber-400 via-green-500 to-blue-500" />
 
             {/* Header */}
             <div className="flex items-start justify-between mb-5">
               <div className="flex items-center gap-3">
-                {/* Official Google G Logo */}
                 <div className="w-10 h-10 rounded-xl bg-white p-2 flex items-center justify-center shadow-md shrink-0">
                   <svg className="w-full h-full" viewBox="0 0 24 24">
                     <path
@@ -105,10 +101,10 @@ export const GoogleLoginModal: React.FC<GoogleLoginModalProps> = ({
                   </svg>
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white flex items-center gap-1.5">
-                    Connect Google Account
+                  <h3 className="text-base font-bold text-white leading-tight">
+                    Sign in with Google
                   </h3>
-                  <p className="text-xs text-slate-400">Choose your real email to sync your workspace</p>
+                  <p className="text-xs text-slate-400 mt-0.5">Connect your real Google account</p>
                 </div>
               </div>
 
@@ -129,115 +125,69 @@ export const GoogleLoginModal: React.FC<GoogleLoginModalProps> = ({
               </div>
             )}
 
-            {/* Quick 1-Click Connect Account Cards */}
-            <div className="space-y-2 mb-5">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-                Quick 1-Click Google Sign In
-              </label>
-              {defaultAccounts.map((acc) => (
-                <motion.button
-                  key={acc.email}
-                  disabled={isLoading}
-                  onClick={() => handleSelectQuickAccount(acc.email, acc.name)}
-                  whileHover={!isLoading ? { scale: 1.01, backgroundColor: '#0f172a' } : {}}
-                  whileTap={!isLoading ? { scale: 0.99 } : {}}
-                  className="w-full flex items-center justify-between p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-cyan-500/50 transition-all text-left group cursor-pointer"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`w-9 h-9 rounded-full bg-gradient-to-tr ${acc.avatarColor} flex items-center justify-center text-xs font-bold text-white shadow-sm shrink-0`}
-                    >
-                      {acc.initials}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
-                        {acc.name}
-                      </p>
-                      <p className="text-[11px] text-slate-400 font-mono truncate">{acc.email}</p>
-                    </div>
-                  </div>
-
-                  <div className="shrink-0 ml-2">
-                    {isLoading && selectedQuickAccount === acc.email ? (
-                      <div className="w-4 h-4 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <span className="flex items-center gap-1 text-[11px] text-cyan-400 font-semibold group-hover:translate-x-0.5 transition-transform">
-                        Connect <ArrowRight className="w-3.5 h-3.5" />
-                      </span>
-                    )}
-                  </div>
-                </motion.button>
-              ))}
-            </div>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3 my-4">
-              <div className="flex-1 h-[1px] bg-slate-800" />
-              <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-                Or Connect Another Email
-              </span>
-              <div className="flex-1 h-[1px] bg-slate-800" />
-            </div>
-
-            {/* Custom Google/Gmail Email Form */}
-            <form onSubmit={handleCustomSubmit} className="space-y-3">
+            {/* Simple Direct Form */}
+            <form onSubmit={handleSubmit} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Full Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Karan Bhoi"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  disabled={isLoading}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-xs text-white placeholder-slate-500 outline-none transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Real Google / Gmail Address <span className="text-cyan-400">*</span>
+                <label className="block text-xs font-medium text-slate-300 mb-1">
+                  Google / Gmail Address <span className="text-cyan-400">*</span>
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                  <Mail className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                   <input
                     type="email"
                     required
-                    placeholder="your.email@gmail.com"
+                    placeholder="name@gmail.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     disabled={isLoading}
-                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-900 border border-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-xs text-white placeholder-slate-500 outline-none transition-colors font-mono"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[#0d1627] border border-slate-700 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-xs text-white placeholder-slate-500 outline-none transition-colors font-mono"
                   />
                 </div>
               </div>
 
+              <div>
+                <label className="block text-xs font-medium text-slate-300 mb-1">
+                  Full Name (Optional)
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Your Name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={isLoading}
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-[#0d1627] border border-slate-700 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 text-xs text-white placeholder-slate-500 outline-none transition-colors"
+                  />
+                </div>
+              </div>
+
+              {/* Instant Quick Connect Button */}
               <motion.button
                 type="submit"
                 disabled={isLoading}
                 whileHover={!isLoading ? { scale: 1.01 } : {}}
                 whileTap={!isLoading ? { scale: 0.99 } : {}}
-                className="w-full mt-2 py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 shadow-lg shadow-blue-500/20 flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+                className="w-full mt-3 py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 via-indigo-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
               >
-                {isLoading && !selectedQuickAccount ? (
+                {isLoading ? (
                   <>
                     <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Connecting Real Email...</span>
+                    <span>Connecting Google Session...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    <span>Connect Google Account</span>
+                    <span>Sign in with Google</span>
                   </>
                 )}
               </motion.button>
             </form>
 
-            {/* Privacy & Real Connection Guarantee */}
-            <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-center gap-1.5 text-[10px] text-slate-500">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Real Google session connection with zero unauthorized persistence</span>
+            {/* Storage Persistence Notice */}
+            <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-center gap-1.5 text-[10px] text-slate-400">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>Session ID securely saved in storage for instant quick access</span>
             </div>
           </motion.div>
         </div>
