@@ -95,25 +95,42 @@ export const LiveVisualizationRenderer: React.FC<LiveVisualizationRendererProps>
       }
     }
 
-    // Dynamic Guarantee: If raw array is missing, synthesize interactive series from columns
-    if (widget.columnsUsed && widget.columnsUsed.length > 0) {
-      const primaryCol = widget.columnsUsed[0] || 'Category';
-      const metricCol = widget.columnsUsed[1] || 'Value';
-      return [
-        { category: `${primaryCol} A`, value: 85, metric_label: metricCol, records: 120 },
-        { category: `${primaryCol} B`, value: 94, metric_label: metricCol, records: 145 },
-        { category: `${primaryCol} C`, value: 62, metric_label: metricCol, records: 88 },
-        { category: `${primaryCol} D`, value: 79, metric_label: metricCol, records: 110 },
-        { category: `${primaryCol} E`, value: 88, metric_label: metricCol, records: 130 }
-      ];
-    }
+    // Extract real data from active dataset preview rows if present (never random dummy numbers)
+    try {
+      const activeRaw = localStorage.getItem('asklytix_cached_active_dataset');
+      if (activeRaw) {
+        const parsed = JSON.parse(activeRaw);
+        const rows = parsed.previewRows;
+        if (Array.isArray(rows) && rows.length > 0 && widget.columnsUsed && widget.columnsUsed.length > 0) {
+          const c1 = widget.columnsUsed[0];
+          const c2 = widget.columnsUsed[1];
+          if (c1 && rows[0] && rows[0][c1] !== undefined) {
+            const counts: Record<string, { value: number; count: number }> = {};
+            for (const r of rows) {
+              const k = String(r[c1] ?? 'Other').trim();
+              if (!k) continue;
+              if (!counts[k]) counts[k] = { value: 0, count: 0 };
+              counts[k].count += 1;
+              if (c2 && r[c2] !== undefined) {
+                const num = Number(String(r[c2]).replace(/[$,₹, ]/g, ''));
+                if (!isNaN(num)) counts[k].value += num;
+                else counts[k].value += 1;
+              } else {
+                counts[k].value += 1;
+              }
+            }
+            const agg = Object.entries(counts).slice(0, 10).map(([cat, d]) => ({
+              category: cat,
+              value: Math.round(d.value * 100) / 100,
+              records: d.count
+            }));
+            if (agg.length > 0) return agg;
+          }
+        }
+      }
+    } catch {}
 
-    return [
-      { category: 'Segment 1', value: 75, records: 50 },
-      { category: 'Segment 2', value: 90, records: 65 },
-      { category: 'Segment 3', value: 60, records: 40 },
-      { category: 'Segment 4', value: 82, records: 55 }
-    ];
+    return [];
   }, [widget]);
 
   // Apply sorting if requested

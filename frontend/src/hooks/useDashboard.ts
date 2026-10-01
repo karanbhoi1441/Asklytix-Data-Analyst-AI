@@ -13,20 +13,11 @@ import type {
 import { initialTabs, aiInsightPools } from '@/data/mockDashboardData';
 import { datasetService } from '@/services/datasetService';
 import type { SavedVisualizationItem } from '@/services/datasetService';
-
-export const DEFAULT_DASHBOARD_WIDGETS: DashboardWidget[] = [
-  { id: 'w_kpi_default', type: 'kpi', title: 'Dataset Key Performance Indicators', colSpan: 4, position: 1 },
-  { id: 'w_line_default', type: 'line_chart', title: 'Performance Trend Over Time', colSpan: 2, position: 2 },
-  { id: 'w_bar_default', type: 'bar_chart', title: 'Sales & Records by Category', colSpan: 2, position: 3 },
-  { id: 'w_donut_default', type: 'donut_chart', title: 'Segment & Customer Distribution', colSpan: 1, position: 4 },
-  { id: 'w_area_default', type: 'area_chart', title: 'Growth Area Trajectory', colSpan: 2, position: 5 },
-  { id: 'w_radar_default', type: 'radar_chart', title: 'Radar Performance Matrix', colSpan: 2, position: 6 },
-  { id: 'w_map_default', type: 'map', title: 'Geographic Distribution & Real-Time Map', colSpan: 2, position: 7 },
-  { id: 'w_table_default', type: 'table', title: 'Top Performing Items', colSpan: 2, position: 8 },
-  { id: 'w_insights_default', type: 'ai_insight', title: 'AI Analysis & Recommendations', colSpan: 1, position: 9 },
-];
+import { useDatasets } from '@/hooks/useDatasets';
 
 export function useDashboard() {
+  const { activeDataset, activeId } = useDatasets();
+
   const [activeDashboard, setActiveDashboard] = useState<string>('Executive Overview');
   const [tabs, setTabs] = useState<DashboardPageTab[]>(initialTabs);
   const [activeTab, setActiveTab] = useState<string>('overview');
@@ -37,8 +28,17 @@ export function useDashboard() {
     category: 'all'
   });
 
-  // Start with populated default widgets so screen is never blank
-  const [widgets, setWidgets] = useState<DashboardWidget[]>(DEFAULT_DASHBOARD_WIDGETS);
+  // Widgets connected directly to active dataset visualizations (no random mock widgets)
+  const [widgets, setWidgets] = useState<DashboardWidget[]>(() => {
+    try {
+      const saved = localStorage.getItem('asklytix_dashboard_widgets');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
 
   const [isEditMode, setIsEditMode] = useState<boolean>(false);
   const [isAddWidgetModalOpen, setIsAddWidgetModalOpen] = useState<boolean>(false);
@@ -47,19 +47,28 @@ export function useDashboard() {
   const [insightIndex, setInsightIndex] = useState<number>(0);
   const [isRefreshingAI, setIsRefreshingAI] = useState<boolean>(false);
 
-  // Real backend metrics — only populated when a real dataset exists
+  // Real backend metrics — populated for the active dataset
   const [backendMetrics, setBackendMetrics] = useState<any>(null);
   const [isLoadingMetrics, setIsLoadingMetrics] = useState<boolean>(false);
 
-  // Active dataset identity info — pulled from backend
-  const [activeDatasetId, setActiveDatasetId] = useState<string | null>(null);
-  const [activeDatasetName, setActiveDatasetName] = useState<string | null>(null);
-  const [activeDatasetColumns, setActiveDatasetColumns] = useState<string[]>([]);
-  const [activeDatasetRowCount, setActiveDatasetRowCount] = useState<number>(0);
+  // Active dataset identity info — pulled from active dataset
+  const [activeDatasetId, setActiveDatasetId] = useState<string | null>(activeId);
+  const [activeDatasetName, setActiveDatasetName] = useState<string | null>(activeDataset?.name || null);
+  const [activeDatasetColumns, setActiveDatasetColumns] = useState<string[]>(
+    (activeDataset?.columnDefs || []).map((c: any) => c.name || String(c))
+  );
+  const [activeDatasetRowCount, setActiveDatasetRowCount] = useState<number>(activeDataset?.rows || 0);
 
-  const populateDefaultWidgets = useCallback(() => {
-    setWidgets(DEFAULT_DASHBOARD_WIDGETS);
-  }, []);
+  // Persist widgets to storage whenever they change
+  useEffect(() => {
+    try {
+      if (widgets.length > 0) {
+        localStorage.setItem('asklytix_dashboard_widgets', JSON.stringify(widgets));
+      } else {
+        localStorage.removeItem('asklytix_dashboard_widgets');
+      }
+    } catch {}
+  }, [widgets]);
 
   const loadSavedVisualizations = useCallback((dsId: string) => {
     if (!dsId || dsId === 'null' || dsId === 'undefined') return;
@@ -92,11 +101,7 @@ export function useDashboard() {
               data: chartData
             };
           });
-          // Preserve existing non-sandbox or append
-          setWidgets((prev) => {
-            const nonSandbox = prev.filter(w => w.type !== 'sandbox_chart');
-            return [...nonSandbox, ...savedWidgets];
-          });
+          setWidgets(savedWidgets);
         }
       })
       .catch(() => {});
@@ -118,58 +123,63 @@ export function useDashboard() {
     loadSavedVisualizations(datasetId);
   }, [loadSavedVisualizations]);
 
+  // Synchronize whenever activeDataset or activeId changes in DatasetContext
   useEffect(() => {
-    const rawStoredId = localStorage.getItem('asklytix_active_dataset_id');
-    const storedId = (rawStoredId && rawStoredId !== 'null' && rawStoredId !== 'undefined') ? rawStoredId : 'ds-001';
+    const currentId = activeDataset?.id || activeId || localStorage.getItem('asklytix_active_dataset_id');
 
-    setActiveDatasetId(storedId);
-
-    if (storedId === 'ds-001') {
-      setActiveDatasetName('Sales Performance 2026');
-      setActiveDatasetRowCount(10000);
-      setActiveDatasetColumns(['order_id', 'order_date', 'customer_name', 'product', 'category', 'region', 'quantity', 'unit_price', 'revenue', 'profit', 'discount_pct', 'payment_method', 'is_returned']);
-      setWidgets((prev) => (prev.length > 0 ? prev : DEFAULT_DASHBOARD_WIDGETS));
+    if (!currentId || currentId === 'null' || currentId === 'undefined') {
+      setActiveDatasetId(null);
+      setActiveDatasetName(null);
+      setActiveDatasetColumns([]);
+      setActiveDatasetRowCount(0);
+      setBackendMetrics(null);
       return;
     }
 
-    loadMetrics(storedId);
+    setActiveDatasetId(currentId);
 
-    // Also load dataset metadata (name, columns, rows)
-    datasetService.getById(storedId)
+    if (activeDataset) {
+      setActiveDatasetName(activeDataset.name);
+      setActiveDatasetRowCount(activeDataset.rows || 0);
+      if (activeDataset.columnDefs && activeDataset.columnDefs.length > 0) {
+        setActiveDatasetColumns(activeDataset.columnDefs.map((c: any) => c.name || String(c)));
+      }
+    }
+
+    loadMetrics(currentId);
+
+    // Fetch schema details if columns are missing
+    datasetService.getById(currentId)
       .then((ds: any) => {
         if (ds && ds.id) {
           setActiveDatasetName(ds.name);
           setActiveDatasetRowCount(ds.rows ?? 0);
-          if (ds.columnDefs && Array.isArray(ds.columnDefs)) {
+          if (ds.columnsList && Array.isArray(ds.columnsList) && ds.columnsList.length > 0) {
+            setActiveDatasetColumns(ds.columnsList);
+          } else if (ds.columnDefs && Array.isArray(ds.columnDefs)) {
             setActiveDatasetColumns(ds.columnDefs.map((s: any) => s.name || s.column_name || s.field || (typeof s === 'string' ? s : '')).filter(Boolean));
-          } else if (ds.schema && Array.isArray(ds.schema)) {
-            setActiveDatasetColumns(ds.schema.map((s: any) => s.name || s.column_name || (typeof s === 'string' ? s : '')).filter(Boolean));
           } else if (ds.columns && Array.isArray(ds.columns)) {
             setActiveDatasetColumns(ds.columns);
           }
         }
       })
-      .catch(() => {
-        // Retain stored dataset identity during navigation
-      });
+      .catch(() => {});
 
-    // Also fetch preview for columns guarantee
-    datasetService.getPreview(storedId, { limit: 5, offset: 0 }).then((prev: any) => {
+    // Ensure preview columns are available
+    datasetService.getPreview(currentId, { limit: 5, offset: 0 }).then((prev: any) => {
       if (prev?.columns && Array.isArray(prev.columns) && prev.columns.length > 0) {
         setActiveDatasetColumns(prev.columns);
       }
     }).catch(() => {});
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeDataset, activeId, loadMetrics]);
 
-  // Allow external refresh when active dataset changes (e.g., after upload)
+  // Allow external refresh when active dataset changes
   const refreshForDataset = useCallback((id: string, name?: string, columns?: string[], rows?: number) => {
     setActiveDatasetId(id);
     if (name) setActiveDatasetName(name);
     if (columns) setActiveDatasetColumns(columns);
     if (rows !== undefined) setActiveDatasetRowCount(rows);
     setBackendMetrics(null);
-    setWidgets([]); // Clear old widgets when switching datasets
     loadMetrics(id);
   }, [loadMetrics]);
 
@@ -206,7 +216,6 @@ export function useDashboard() {
 
   const removeWidget = useCallback((id: string) => {
     setWidgets((prev) => prev.filter((w) => w.id !== id));
-    // If it's a saved sandbox visual, delete from backend
     if (!id.startsWith('w_') || id.includes('-')) {
       datasetService.deleteVisualization(id).catch(() => {});
     }
@@ -214,6 +223,9 @@ export function useDashboard() {
 
   const clearAllWidgets = useCallback(() => {
     setWidgets([]);
+    try {
+      localStorage.removeItem('asklytix_dashboard_widgets');
+    } catch {}
     if (activeDatasetId) {
       datasetService.clearAllVisualizations(activeDatasetId).catch(() => {});
     }
@@ -234,6 +246,12 @@ export function useDashboard() {
     };
     setWidgets((prev) => [...prev, clone]);
   }, [widgets]);
+
+  const populateDefaultWidgets = useCallback(() => {
+    if (activeDatasetId) {
+      loadSavedVisualizations(activeDatasetId);
+    }
+  }, [activeDatasetId, loadSavedVisualizations]);
 
   const refreshAIInsights = useCallback(() => {
     setIsRefreshingAI(true);
@@ -347,7 +365,6 @@ export function useDashboard() {
     populateDefaultWidgets,
     refreshAIInsights,
     isRefreshingAI,
-    // Dataset info
     hasDataset,
     isLoadingMetrics,
     activeDatasetId,
@@ -355,10 +372,8 @@ export function useDashboard() {
     activeDatasetColumns,
     activeDatasetRowCount,
     refreshForDataset,
-    // Connected Location Cross-Filter
     selectedLocationFilter,
     setSelectedLocationFilter,
-    // Real data payload (cross-filtered for all visual boxes)
     kpis,
     mainChartData,
     categorySales,

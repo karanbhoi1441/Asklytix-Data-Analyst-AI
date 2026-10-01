@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { useDashboard } from '@/hooks/useDashboard';
+import { useDatasets } from '@/hooks/useDatasets';
 import { useAuth } from '@/hooks/useAuth';
 import { datasetService } from '@/services/datasetService';
 import type { SavedVisualizationItem, VisualSuggestionItem } from '@/services/datasetService';
@@ -53,6 +54,7 @@ interface ChatMessageItem {
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { loadSampleDataset } = useDatasets();
   const [promptInput, setPromptInput] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [loadingStageText, setLoadingStageText] = useState<string>('Analyzing your request...');
@@ -567,8 +569,7 @@ export const DashboardPage: React.FC = () => {
 
             <button
               onClick={() => {
-                localStorage.setItem('asklytix_active_dataset_id', 'ds-001');
-                window.location.reload();
+                loadSampleDataset();
               }}
               className="flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold text-cyan-300 bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 cursor-pointer transition-all"
             >

@@ -19,9 +19,9 @@ export const Card: React.FC<CardProps> = ({
   ...props
 }) => {
   const variantStyles: Record<CardVariant, string> = {
-    default: 'bg-slate-900/40 backdrop-blur-md border border-slate-800/60 shadow-xl rounded-2xl p-5',
-    glass: 'glass-card rounded-2xl p-5 border border-slate-800/50 shadow-xl',
-    analytics: 'bg-gradient-to-b from-slate-900/50 via-slate-900/35 to-slate-950/45 backdrop-blur-md border border-slate-800/70 hover:border-cyan-500/40 transition-all duration-300 rounded-2xl p-5 shadow-2xl relative overflow-hidden',
+    default: 'bg-slate-900/85 backdrop-blur-xl border border-slate-800/80 shadow-2xl rounded-2xl p-5',
+    glass: 'glass-card rounded-2xl p-5 border border-slate-800/80 shadow-2xl',
+    analytics: 'bg-gradient-to-b from-slate-900/90 via-[#0a1426]/85 to-slate-950/90 backdrop-blur-xl border border-slate-800/80 hover:border-cyan-500/40 transition-all duration-300 rounded-2xl p-5 shadow-2xl relative overflow-hidden',
     interactive: 'glass-card-interactive rounded-2xl p-5 cursor-pointer hover:border-cyan-500/50 hover:shadow-[0_0_25px_rgba(6,182,212,0.15)] transition-all duration-300'
   };
 

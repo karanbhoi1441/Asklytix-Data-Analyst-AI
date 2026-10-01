@@ -4,6 +4,7 @@ import { PageContainer } from '@/components/ui/PageContainer';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { datasetService } from '@/services/datasetService';
+import { useDatasets } from '@/hooks/useDatasets';
 import type { Dataset } from '@/types/datasets';
 import type { SavedVisualizationItem, VisualSuggestionItem } from '@/services/datasetService';
 import type { DashboardWidget } from '@/types/dashboard';
@@ -33,8 +34,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export const VisualizationsPage: React.FC = () => {
   const navigate = useNavigate();
-  const [datasets, setDatasets] = useState<Dataset[]>([]);
-  const [selectedDatasetId, setSelectedDatasetId] = useState<string>('');
+  const { datasets, activeDataset, activeId, setActiveDataset } = useDatasets();
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string>(() => {
+    return activeId || activeDataset?.id || localStorage.getItem('asklytix_active_dataset_id') || '';
+  });
   const [visualizations, setVisualizations] = useState<SavedVisualizationItem[]>([]);
   const [suggestions, setSuggestions] = useState<VisualSuggestionItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -51,28 +54,15 @@ export const VisualizationsPage: React.FC = () => {
     explanation?: string;
   } | null>(null);
 
-  // Load all datasets on mount
+  // Synchronize selectedDatasetId with activeId from central context
   useEffect(() => {
-    let isMounted = true;
-    datasetService.list()
-      .then((data) => {
-        if (!isMounted) return;
-        setDatasets(data || []);
-        const activeId = localStorage.getItem('asklytix_active_dataset_id');
-        if (activeId && data.some(d => d.id === activeId)) {
-          setSelectedDatasetId(activeId);
-        } else if (data && data.length > 0) {
-          setSelectedDatasetId(data[0].id);
-        }
-      })
-      .catch((err) => {
-        console.warn('Failed to fetch datasets list:', err);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+    const cur = activeId || activeDataset?.id;
+    if (cur && (!selectedDatasetId || selectedDatasetId !== cur)) {
+      setSelectedDatasetId(cur);
+    } else if (!selectedDatasetId && datasets.length > 0) {
+      setSelectedDatasetId(datasets[0].id);
+    }
+  }, [activeId, activeDataset, datasets, selectedDatasetId]);
 
   // Fetch visualizations & suggestions whenever selectedDatasetId changes
   useEffect(() => {
@@ -113,7 +103,7 @@ export const VisualizationsPage: React.FC = () => {
   }, [selectedDatasetId]);
 
   const selectedDataset = useMemo(() => {
-    return datasets.find(d => d.id === selectedDatasetId);
+    return datasets.find((d: Dataset) => d.id === selectedDatasetId);
   }, [datasets, selectedDatasetId]);
 
   // Handle generating a new dynamic visualization from prompt or suggestion
@@ -286,10 +276,13 @@ export const VisualizationsPage: React.FC = () => {
               </div>
               <select
                 value={selectedDatasetId}
-                onChange={(e) => setSelectedDatasetId(e.target.value)}
+                onChange={(e) => {
+                  setSelectedDatasetId(e.target.value);
+                  setActiveDataset(e.target.value);
+                }}
                 className="bg-slate-900 text-xs text-cyan-300 font-mono font-bold border border-slate-700 rounded-xl px-3.5 py-2 focus:outline-none focus:border-cyan-500 transition-all cursor-pointer"
               >
-                {datasets.map((d) => (
+                {datasets.map((d: Dataset) => (
                   <option key={d.id} value={d.id}>
                     {d.name} ({d.rows || (d as any).row_count || 0} rows)
                   </option>

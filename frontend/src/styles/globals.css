@@ -59,21 +59,21 @@
   background: #06b6d4;
 }
 
-/* Design System Utilities - Light transparent frosted glass so animated background graphics glow through */
+/* Design System Utilities - Frosted blur glass theme (opaque dark backing, not transparent) */
 .glass-card {
-  background: rgba(10, 18, 36, 0.45);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(8, 14, 28, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
 }
 
 .glass-card-interactive {
-  background: rgba(10, 18, 36, 0.45);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(8, 14, 28, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -84,10 +84,10 @@
 }
 
 .glass-panel {
-  background: rgba(8, 14, 28, 0.48);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(30, 41, 59, 0.55);
+  background: rgba(8, 14, 28, 0.90);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(30, 41, 59, 0.65);
 }
 
 .glow-cyan {

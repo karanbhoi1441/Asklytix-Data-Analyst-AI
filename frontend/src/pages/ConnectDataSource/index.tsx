@@ -33,33 +33,33 @@ export const ConnectDataSourcePage: React.FC = () => {
     rows: number;
     cols: number;
   } | null>(() => {
-    if (activeDataset) {
+    if (activeDataset && activeDataset.id) {
       return {
-        name: activeDataset.name ? `${activeDataset.name}.${activeDataset.format || 'csv'}` : 'Sales Performance 2026.csv',
+        name: activeDataset.name ? (activeDataset.name.includes('.') ? activeDataset.name : `${activeDataset.name}.${activeDataset.format || 'csv'}`) : 'dataset.csv',
         format: (activeDataset.format || 'CSV').toUpperCase(),
-        size: activeDataset.sizeLabel || '2.3 MB',
-        rows: activeDataset.rows || 10000,
-        cols: activeDataset.columns || 13
+        size: activeDataset.sizeLabel || `${Math.round((activeDataset.sizeBytes || 1024) / 1024)} KB`,
+        rows: activeDataset.rows || 0,
+        cols: activeDataset.columns || 0
       };
     }
     return null;
   });
 
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>(() => {
-    return activeDataset ? 'success' : 'idle';
+    return activeDataset && activeDataset.id ? 'success' : 'idle';
   });
   const [uploadProgress, setUploadProgress] = useState(0);
   const [progressStage, setProgressStage] = useState('Uploading dataset...');
   const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
-    if (activeDataset) {
+    if (activeDataset && activeDataset.id) {
       setUploadedInfo({
-        name: activeDataset.name ? `${activeDataset.name}.${activeDataset.format || 'csv'}` : 'Sales Performance 2026.csv',
+        name: activeDataset.name ? (activeDataset.name.includes('.') ? activeDataset.name : `${activeDataset.name}.${activeDataset.format || 'csv'}`) : 'dataset.csv',
         format: (activeDataset.format || 'CSV').toUpperCase(),
-        size: activeDataset.sizeLabel || '2.3 MB',
-        rows: activeDataset.rows || 10000,
-        cols: activeDataset.columns || 13
+        size: activeDataset.sizeLabel || `${Math.round((activeDataset.sizeBytes || 1024) / 1024)} KB`,
+        rows: activeDataset.rows || 0,
+        cols: activeDataset.columns || 0
       });
       setUploadStatus('success');
     } else {
@@ -69,6 +69,11 @@ export const ConnectDataSourcePage: React.FC = () => {
   }, [activeDataset]);
 
   const handleRemoveDataset = async () => {
+    const confirmed = window.confirm(
+      `Are you sure you want to disconnect and delete "${activeDataset?.name || 'this dataset'}"?\nThis will completely remove the dataset and all associated visualizations.`
+    );
+    if (!confirmed) return;
+
     try {
       if (activeDataset?.id) {
         await deleteDataset(activeDataset.id);

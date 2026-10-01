@@ -1,5 +1,6 @@
 import os
 import json
+import pandas as pd
 from typing import Optional, List
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -281,10 +282,37 @@ def generate_visualization_endpoint(
         next_pos = (last_item.position + 1) if last_item else 1
 
         cols_val = viz_data.get("columns_used", [])
+        real_data = viz_data.get("data") or (result.get("chart_specification") or {}).get("data") or []
+        if not real_data and cols_val and len(cols_val) >= 2 and cols_val[0] in df.columns and cols_val[1] in df.columns:
+            c1, c2 = cols_val[0], cols_val[1]
+            try:
+                if pd.api.types.is_numeric_dtype(df[c2]) or AIVisualizationService._is_numeric_series(c2, df):
+                    df_c = df.copy()
+                    df_c[c2] = pd.to_numeric(df_c[c2].astype(str).str.replace(r'[\$,₹, ]', '', regex=True), errors='coerce')
+                    grouped = df_c.groupby(c1)[c2].sum().reset_index().head(12)
+                    real_data = [{"category": str(r[c1]), "value": round(float(r[c2]), 2)} for _, r in grouped.iterrows()]
+                else:
+                    counts = df.groupby([c1, c2]).size().reset_index(name="count").head(12)
+                    real_data = [{"category": f"{r[c1]} - {r[c2]}", "value": float(r["count"])} for _, r in counts.iterrows()]
+            except Exception:
+                pass
+        elif not real_data and cols_val and len(cols_val) >= 1 and cols_val[0] in df.columns:
+            c1 = cols_val[0]
+            try:
+                counts = df[c1].value_counts().reset_index().head(12)
+                counts.columns = ["category", "value"]
+                real_data = [{"category": str(r["category"]), "value": float(r["value"])} for _, r in counts.iterrows()]
+            except Exception:
+                pass
+
+        chart_spec_dict = result.get("chart_specification") or {}
+        if real_data and not chart_spec_dict.get("data"):
+            chart_spec_dict["data"] = real_data
+
         stored_payload = {
             "columns": cols_val if isinstance(cols_val, list) else [],
-            "data": viz_data.get("data") or (result.get("chart_specification") or {}).get("data") or [],
-            "chart_specification": result.get("chart_specification")
+            "data": real_data,
+            "chart_specification": chart_spec_dict
         }
 
         saved = SavedVisualization(

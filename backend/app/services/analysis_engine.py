@@ -360,8 +360,10 @@ class AnalysisEngine:
                     if is_match:
                         if col not in matched_entities_by_col:
                             matched_entities_by_col[col] = []
-                        if val_clean not in matched_entities_by_col[col]:
-                            matched_entities_by_col[col].append(val_clean)
+                        # Deduplicate case variations (e.g. "PUNE", "pune", "Pune" -> single clean "Pune")
+                        existing_lowers = [e.lower() for e in matched_entities_by_col[col]]
+                        if val_lower not in existing_lowers:
+                            matched_entities_by_col[col].append(val_clean.title())
 
         # Primary filter column & entities
         primary_filter_col = None
@@ -429,19 +431,17 @@ class AnalysisEngine:
                 target_unique_clause = f'COUNT(DISTINCT "{target_dim_col}") AS "Unique_{target_dim_label}s",' if target_dim_col else ""
                 rev_sum_clause = f'ROUND(SUM("{rev_col}"), 2) AS "Total_Revenue",' if rev_col else ""
                 price_avg_clause = f'ROUND(AVG("{price_col or rev_col}"), 2) AS "Avg_Price",' if (price_col or rev_col) else ""
-                str_agg_clause = f'STRING_AGG(DISTINCT "{target_dim_col}", \', \') AS "{target_dim_label}s_List"' if target_dim_col else ""
                 
                 agg_sql = f'''
                     SELECT 
-                        "{primary_filter_col}" AS "{filter_col_label}",
+                        INITCAP(LOWER("{primary_filter_col}")) AS "{filter_col_label}",
                         {target_unique_clause}
                         COUNT(*) AS "Total_Transactions",
                         {rev_sum_clause}
                         {price_avg_clause}
-                        {str_agg_clause}
                     FROM dataset
                     WHERE LOWER("{primary_filter_col}") IN ({in_entities_sql})
-                    GROUP BY "{primary_filter_col}"
+                    GROUP BY INITCAP(LOWER("{primary_filter_col}"))
                     ORDER BY "Total_Transactions" DESC;
                 '''
                 agg_df = con.execute(agg_sql).df()
@@ -470,26 +470,35 @@ class AnalysisEngine:
                     tx_cnt = r["Total_Transactions"]
                     unique_cnt = r.get(f"Unique_{target_dim_label}s", "N/A")
                     rev_val = r.get("Total_Revenue", 0)
-                    list_items = r.get(f"{target_dim_label}s_List", "")
                     
-                    line = f"• **{ent_name}**: **{unique_cnt} unique {target_dim_label.lower()}s** across **{tx_cnt} recorded transactions** ({format_currency(rev_val)} total revenue)"
-                    if list_items and len(list_items) < 120:
-                        line += f"\n  - *Active {target_dim_label}s*: {list_items}"
+                    line = f"• **{ent_name}**: **{unique_cnt} unique {target_dim_label.lower()}s** across **{tx_cnt:,} recorded transactions** ({format_currency(rev_val)} total revenue)"
                     entity_bullet_lines.append(line)
 
                 entities_joined = ", ".join([f"**{e}**" for e in filter_entities])
                 share_of_dataset = round((tot_combined_tx / max(1, total_records)) * 100, 1)
 
-                response_text = (
-                    f"### KPI Breakdown for {filter_col_label}s: {entities_joined}\n\n"
-                    f"Across the **{len(filter_entities)} requested {filter_col_label.lower()}s** ({', '.join(filter_entities)}), there are **{tot_unique_target} unique {target_dim_label.lower()}s** with **{tot_combined_tx:,} total transactions**:\n\n"
-                    + "\n".join(entity_bullet_lines) + "\n\n"
-                    f"#### 📊 Consolidated KPIs:\n"
-                    f"• **Target {filter_col_label}s**: **{len(filter_entities)}** ({', '.join(filter_entities)})\n"
-                    f"• **Total Unique {target_dim_label}s**: **{tot_unique_target}**\n"
-                    f"• **Combined Transactions**: **{tot_combined_tx:,} rows** ({share_of_dataset}% of entire dataset)\n"
-                    f"• **Combined Revenue**: **{format_currency(tot_combined_rev)}**"
-                )
+                if len(filter_entities) == 1:
+                    target_entity = filter_entities[0]
+                    response_text = (
+                        f"### {target_entity} Summary ({filter_col_label})\n\n"
+                        f"For **{target_entity}**, there are **{tot_unique_target} unique {target_dim_label.lower()}s** across **{tot_combined_tx:,} total transactions**:\n\n"
+                        f"#### 📊 Consolidated KPIs:\n"
+                        f"• **Target {filter_col_label}**: **{target_entity}**\n"
+                        f"• **Total Unique {target_dim_label}s**: **{tot_unique_target}**\n"
+                        f"• **Combined Transactions**: **{tot_combined_tx:,} rows** ({share_of_dataset}% of entire dataset)\n"
+                        f"• **Combined Revenue**: **{format_currency(tot_combined_rev)}**"
+                    )
+                else:
+                    response_text = (
+                        f"### KPI Breakdown for {filter_col_label}s: {entities_joined}\n\n"
+                        f"Across the **{len(filter_entities)} requested {filter_col_label.lower()}s** ({', '.join(filter_entities)}), there are **{tot_unique_target} unique {target_dim_label.lower()}s** with **{tot_combined_tx:,} total transactions**:\n\n"
+                        + "\n".join(entity_bullet_lines) + "\n\n"
+                        f"#### 📊 Consolidated KPIs:\n"
+                        f"• **Target {filter_col_label}s**: **{len(filter_entities)}** ({', '.join(filter_entities)})\n"
+                        f"• **Total Unique {target_dim_label}s**: **{tot_unique_target}**\n"
+                        f"• **Combined Transactions**: **{tot_combined_tx:,} rows** ({share_of_dataset}% of entire dataset)\n"
+                        f"• **Combined Revenue**: **{format_currency(tot_combined_rev)}**"
+                    )
 
                 top_entity_name = agg_rows[0][filter_col_label] if agg_rows else filter_entities[0]
                 top_entity_tx = agg_rows[0]["Total_Transactions"] if agg_rows else 0
